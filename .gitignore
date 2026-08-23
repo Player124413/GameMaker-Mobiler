@@ -30,18 +30,24 @@ project.lock.json
 packages/
 *.DotSettings.user
 .vs/GameMaker-Mobiler/
+.nuget-profile/
+.user-profile/
+NuGet/
 
 # OS files
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+desktop.ini
 $RECYCLE.BIN/
+.DS_Store
 
 # Temporary
 *.tmp
 *.bak
 *.swp
 *~
+*.log
 
 # NuGet
 packages/
@@ -50,10 +56,15 @@ packages/
 # Rerun cache
 *.rerun
 
+# Debug symbols
+*.pdb
+
 # Large binaries - never upload
 *.exe
 *.apk
+*.aab
 *.msi
+*.idsig
 
 # Tools (large)
 Tools/jre-portable/

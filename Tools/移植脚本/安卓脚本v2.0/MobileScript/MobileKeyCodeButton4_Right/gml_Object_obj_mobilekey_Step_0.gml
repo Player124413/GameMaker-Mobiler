@@ -1,3 +1,8 @@
+var _gui_width = display_get_gui_width();
+var _gui_height = display_get_gui_height();
+var _gui_right = _gui_width - 640;
+var _gui_bottom = _gui_height - 480;
+
 cu = 1;
 cd = 1;
 cl = 1;
@@ -12,41 +17,45 @@ for (i = 0; i < 4; i++)
 {
     _ak = 0;
     _ak2 = 0;
+    var _touch_x = device_mouse_x_to_gui(i);
+    var _touch_y = device_mouse_y_to_gui(i);
+    var _layout_x = (_touch_x >= _gui_width * 0.5) ? _touch_x - _gui_right : _touch_x;
+    var _layout_y = (_touch_y >= _gui_height * 0.5) ? _touch_y - _gui_bottom : _touch_y;
     
     if (device_mouse_check_button(i, mb_left))
     {
-        if (device_mouse_x_to_gui(i) >= 560 && device_mouse_x_to_gui(i) <= 640 && device_mouse_y_to_gui(i) >= 51)
+        if (_layout_x >= 560 && _layout_x <= 640 && _layout_y >= 51)
         {
             cz = 0.5;
             _ak = mk_z_button;
         }
-        else if (device_mouse_x_to_gui(i) > 640)
+        else if (_layout_x > 640)
         {
             cz = 0.5;
             _ak = mk_z_button;
         }
-        else if (device_mouse_x_to_gui(i) >= 480 && device_mouse_x_to_gui(i) < 560)
+        else if (_layout_x >= 480 && _layout_x < 560)
         {
             cx = 0.5;
             _ak = mk_x_button;
         }
-        else if (device_mouse_x_to_gui(i) >= 400 && device_mouse_x_to_gui(i) < 480)
+        else if (_layout_x >= 400 && _layout_x < 480)
         {
             cg = 0.5;
             _ak = mk_c_button;
         }
-        else if (device_mouse_x_to_gui(i) >= 560 && device_mouse_x_to_gui(i) <= 640 && device_mouse_y_to_gui(i) <= 50)
+        else if (_layout_x >= 560 && _layout_x <= 640 && _layout_y <= 50)
         {
             mubai = 0.5;
             _ak = mk_up_right_button;
         }
         else if (!_m)
         {
-            if (device_mouse_x_to_gui(i) < 400)
+            if (_layout_x < 400)
             {
                 _m = 1;
-                _dx = device_mouse_x_to_gui(i) - 140;
-                _dy = device_mouse_y_to_gui(i) - 360;
+                _dx = _layout_x - 140;
+                _dy = _layout_y - 360;
                 _da = point_direction(0, 0, _dx, _dy);
                 
                 if (_da >= 292.5 || _da <= 67.5)
@@ -161,3 +170,4 @@ if (cl == 1 && keyboard_check(mk_left))
 
 if (cd == 1 && keyboard_check(mk_down))
     keyboard_key_release(mk_down);
+

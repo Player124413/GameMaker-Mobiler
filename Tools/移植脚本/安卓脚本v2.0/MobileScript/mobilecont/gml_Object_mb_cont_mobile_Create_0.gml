@@ -1,6 +1,6 @@
 //0为否，1为是
 global.ui_state = 1;
-global.mobile_f2 = 1;
+global.mobile_f2 = 0;
 //Joystick重开键是否开启
 global.mobile_heal = 0;
 //Joystick回血键是否开启

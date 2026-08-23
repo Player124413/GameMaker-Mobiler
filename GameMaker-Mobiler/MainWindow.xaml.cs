@@ -618,7 +618,7 @@ namespace GameMaker_Mobiler
             {
                 AddLog("===== 开始移植流程 =====");
 
-                AddLog("步骤 1: 修改 data.win (UTMT CLI)...");
+                AddLog("步骤 1: 修改 data.win (内置 UTMT 脚本引擎)...");
                 modifiedDataWinPath = Path.Combine(
                     Path.GetTempPath(),
                     $"gmm_port_{Guid.NewGuid():N}.game.droid");

@@ -262,9 +262,11 @@ public class ApkBuilder
                 continue;
             }
 
-            var compression = string.Equals(entry.FullName, "resources.arsc", StringComparison.OrdinalIgnoreCase)
+            // 保留原始条目的压缩方式，特别确保 .so 文件和 resources.arsc 不压缩
+            // 否则模板中原先未压缩的 .so 会被重新压缩，导致安装失败
+            var compression = entry.CompressedLength == entry.Length
                 ? CompressionLevel.NoCompression
-                : CompressionLevel.Optimal;
+                : GetApkCompressionLevel(entry.FullName);
             var newEntry = output.CreateEntry(entry.FullName, compression);
 
             using var source = entry.Open();
@@ -748,9 +750,14 @@ public class ApkBuilder
 
     private static CompressionLevel GetApkCompressionLevel(string entryName)
     {
-        return string.Equals(entryName, "resources.arsc", StringComparison.OrdinalIgnoreCase)
-            ? CompressionLevel.NoCompression
-            : CompressionLevel.Optimal;
+        // Android 要求 resources.arsc 和所有 .so 原生库必须不压缩（Stored）存储
+        // .so 文件必须不压缩，这样系统才能直接 mmap，否则会导致 INSTALL_FAILED_INVALID_APK
+        if (string.Equals(entryName, "resources.arsc", StringComparison.OrdinalIgnoreCase) ||
+            entryName.EndsWith(".so", StringComparison.OrdinalIgnoreCase))
+        {
+            return CompressionLevel.NoCompression;
+        }
+        return CompressionLevel.Optimal;
     }
 
     private static void CopyDirectory(string sourceDir, string targetDir)
@@ -1997,7 +2004,7 @@ public class ApkBuilder
                     continue;
 
                 var newEntry = output.CreateEntry(entry.FullName, GetApkCompressionLevel(entry.FullName));
-                    using var newStream = newEntry.Open();
+                using var newStream = newEntry.Open();
 
                 if (entry.FullName.EndsWith("ic_launcher.png", StringComparison.Ordinal) ||
                     entry.FullName.EndsWith("ic_launcher_round.png", StringComparison.Ordinal) ||
@@ -2088,11 +2095,16 @@ public class ApkBuilder
         var psi = new ProcessStartInfo
         {
             FileName = zipalignExe,
-            Arguments = $"-f 4 \"{apkPath}\" \"{tempFile}\"",
+            // -p: 将未压缩的 .so 文件对齐到 4096 字节页面边界（Android mmap 要求）
+            // -f: 强制覆盖输出
+            // 4: 常规资源 4 字节对齐
+            Arguments = $"-f -p 4 \"{apkPath}\" \"{tempFile}\"",
             CreateNoWindow = true,
             UseShellExecute = false,
             RedirectStandardOutput = true,
-            RedirectStandardError = true
+            RedirectStandardError = true,
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8
         };
 
         using var process = Process.Start(psi);
@@ -2314,4 +2326,3 @@ public sealed class TempDirectory : IDisposable
         catch { }
     }
 }
-

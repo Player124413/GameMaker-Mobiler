@@ -1,11 +1,11 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using UndertaleModLib;
+using UndertaleModLib.Compiler;
+using UndertaleModLib.Models;
 
 namespace GameMaker_Mobiler.Services;
 
@@ -69,12 +69,6 @@ public sealed class UtmtService
             throw new ArgumentException("options must contain 5 values", nameof(options));
         }
 
-        var utmtCliPath = GetUtmtCliPath();
-        if (!File.Exists(utmtCliPath))
-        {
-            throw new FileNotFoundException("UndertaleModCli.exe not found", utmtCliPath);
-        }
-
         var addMobileKey = options[0];
         var mobileF2 = options[1];
         var mobileHeal = options[2];
@@ -88,13 +82,22 @@ public sealed class UtmtService
         Directory.CreateDirectory(workingDirectory);
         var workingOutputPath = Path.Combine(workingDirectory, Path.GetFileName(finalOutputPath));
 
-        // 获取游戏版本用于选择 UTE 修复脚本
-        var (majorVer, minorVer) = ReadVersionFromDataWin(dataWinPath);
-
-        var tempGmlPath = Path.Combine(Path.GetTempPath(), $"gmm_mobile_{Guid.NewGuid():N}.gml");
         try
         {
             File.Copy(dataWinPath, workingOutputPath, overwrite: true);
+            using var data = DataWinVersionReader.ReadData(
+                workingOutputPath,
+                warningHandler: (warning, isImportant) =>
+                    _log?.Invoke($"data.win 警告: {warning}", isImportant),
+                messageHandler: message => _log?.Invoke(message, false));
+            var version = DataWinVersionReader.FromData(data);
+            var majorVer = (int)version.Major;
+            var minorVer = (int)version.Minor;
+            var scriptGlobals = new UtmtScriptGlobals(
+                data,
+                workingOutputPath,
+                _log,
+                cancellationToken);
 
             // Step 1: Mobile 集成脚本（任何游戏均可执行）
             if (addMobileKey)
@@ -106,10 +109,7 @@ public sealed class UtmtService
                 }
 
                 _log?.Invoke("执行 Mobile 集成脚本...", false);
-                await RunUtmtProcessAsync(
-                    utmtCliPath,
-                    ["load", workingOutputPath, "-s", integrationScriptPath, "-o", workingOutputPath],
-                    cancellationToken).ConfigureAwait(false);
+                await scriptGlobals.RunScriptFileAsync(integrationScriptPath).ConfigureAwait(false);
             }
             else
             {
@@ -126,10 +126,7 @@ public sealed class UtmtService
                 }
 
                 _log?.Invoke($"检测到 UTE 模板游戏，执行 UTE 修复脚本: {Path.GetFileName(uteRepairScriptPath)}", false);
-                await RunUtmtProcessAsync(
-                    utmtCliPath,
-                    ["load", workingOutputPath, "-s", uteRepairScriptPath, "-o", workingOutputPath],
-                    cancellationToken).ConfigureAwait(false);
+                await scriptGlobals.RunScriptFileAsync(uteRepairScriptPath).ConfigureAwait(false);
             }
             else
             {
@@ -145,13 +142,32 @@ public sealed class UtmtService
             var templateContent = await File.ReadAllTextAsync(templatePath, cancellationToken).ConfigureAwait(false);
             var patchedContent = PatchMobileGlobals(templateContent, addMobileKey, mobileF2, mobileHeal, mobileCn, androidSystemKeyboard);
 
-            await File.WriteAllTextAsync(tempGmlPath, patchedContent, cancellationToken).ConfigureAwait(false);
-
             _log?.Invoke($"写入全局变量配置到 {Path.GetFileName(workingOutputPath)}...", false);
-            await RunUtmtProcessAsync(
-                utmtCliPath,
-                ["replace", workingOutputPath, "-c", $"gml_Object_mb_cont_mobile_Create_0={tempGmlPath}", "-o", workingOutputPath],
-                cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            var mobileControlCode = data.Code.ByName("gml_Object_mb_cont_mobile_Create_0");
+            if (mobileControlCode is null)
+            {
+                throw new InvalidDataException(
+                    "data.win 中不存在 gml_Object_mb_cont_mobile_Create_0。");
+            }
+
+            var importGroup = new CodeImportGroup(data)
+            {
+                MainThreadAction = scriptGlobals.MainThreadAction
+            };
+            importGroup.QueueReplace(mobileControlCode, patchedContent);
+            importGroup.Import();
+
+            cancellationToken.ThrowIfCancellationRequested();
+            _log?.Invoke("保存修改后的 data.win...", false);
+            using (var dataWriteStream = new FileStream(
+                       workingOutputPath,
+                       FileMode.Create,
+                       FileAccess.Write,
+                       FileShare.None))
+            {
+                UndertaleIO.Write(dataWriteStream, data);
+            }
 
             if (!string.Equals(workingOutputPath, finalOutputPath, StringComparison.OrdinalIgnoreCase))
             {
@@ -165,18 +181,6 @@ public sealed class UtmtService
         {
             try
             {
-                if (File.Exists(tempGmlPath))
-                {
-                    File.Delete(tempGmlPath);
-                }
-            }
-            catch
-            {
-                // Ignore temp cleanup errors.
-            }
-
-            try
-            {
                 if (Directory.Exists(workingDirectory))
                 {
                     Directory.Delete(workingDirectory, recursive: true);
@@ -186,134 +190,6 @@ public sealed class UtmtService
             {
                 // Ignore temp cleanup errors.
             }
-        }
-    }
-
-    private async Task RunUtmtProcessAsync(string fileName, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = fileName,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            StandardOutputEncoding = System.Text.Encoding.UTF8,
-            StandardErrorEncoding = System.Text.Encoding.UTF8,
-            CreateNoWindow = true,
-            UseShellExecute = false,
-            WorkingDirectory = Path.GetDirectoryName(fileName) ?? AppDomain.CurrentDomain.BaseDirectory
-        };
-
-        foreach (var argument in arguments)
-        {
-            psi.ArgumentList.Add(argument);
-        }
-
-        using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
-        var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var stdout = new StringBuilder();
-        var stderr = new StringBuilder();
-
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (!string.IsNullOrWhiteSpace(e.Data))
-            {
-                stdout.AppendLine(e.Data);
-                _log?.Invoke(e.Data, false);
-            }
-        };
-
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (!string.IsNullOrWhiteSpace(e.Data))
-            {
-                stderr.AppendLine(e.Data);
-                _log?.Invoke(e.Data, true);
-            }
-        };
-
-        process.Exited += (_, _) => tcs.TrySetResult(process.ExitCode);
-
-        if (!process.Start())
-        {
-            throw new InvalidOperationException("Failed to start UndertaleModCli process.");
-        }
-
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-
-        using var registration = cancellationToken.Register(() =>
-        {
-            try
-            {
-                if (!process.HasExited)
-                {
-                    process.Kill(entireProcessTree: true);
-                }
-            }
-            catch
-            {
-                // Ignore kill errors.
-            }
-        });
-
-        var exitCode = await tcs.Task.ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        if (exitCode != 0)
-        {
-            var commandLine = BuildDisplayCommand(arguments);
-            var details = BuildFailureDetails(exitCode, commandLine, stdout.ToString(), stderr.ToString());
-            throw new InvalidOperationException(details);
-        }
-    }
-
-    private static string BuildFailureDetails(int exitCode, string commandLine, string stdout, string stderr)
-    {
-        var builder = new StringBuilder();
-        builder.AppendLine($"UTMT command failed with exit code {exitCode}: {commandLine}");
-
-        if (!string.IsNullOrWhiteSpace(stderr))
-        {
-            builder.AppendLine();
-            builder.AppendLine("stderr:");
-            builder.AppendLine(stderr.Trim());
-        }
-
-        if (!string.IsNullOrWhiteSpace(stdout))
-        {
-            builder.AppendLine();
-            builder.AppendLine("stdout:");
-            builder.AppendLine(stdout.Trim());
-        }
-
-        return builder.ToString().TrimEnd();
-    }
-
-    private static string BuildDisplayCommand(IReadOnlyList<string> arguments)
-    {
-        return string.Join(" ", arguments.Select(QuoteArgument));
-    }
-
-    private static string QuoteArgument(string argument)
-    {
-        if (argument.Length == 0)
-            return "\"\"";
-
-        return argument.Any(char.IsWhiteSpace)
-            ? $"\"{argument.Replace("\"", "\\\"")}\""
-            : argument;
-    }
-
-    private static (int Major, int Minor) ReadVersionFromDataWin(string dataWinPath)
-    {
-        try
-        {
-            var version = DataWinVersionReader.Read(dataWinPath);
-            return ((int)version.Major, (int)version.Minor);
-        }
-        catch
-        {
-            return (0, 0);
         }
     }
 
@@ -358,11 +234,6 @@ public sealed class UtmtService
         return Directory.Exists(binDir)
             && Directory.Exists(localeDir)
             && File.Exists(gmuConsole);
-    }
-
-    private static string GetUtmtCliPath()
-    {
-        return Path.Combine(RuntimePaths.ToolsDirectory, "UTMT_CLI_v0.9.1.2-Windows", "UndertaleModCli.exe");
     }
 
     private static string GetIntegrationScriptPath()

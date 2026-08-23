@@ -51,7 +51,6 @@ cd GameMaker-Mobiler/bin/Release/net8.0-windows
 > ```
 > GameMaker-Mobiler/
 > ├── Tools/
-> │   ├── UTMT_CLI_v0.9.1.2-Windows/      # UndertaleModCli 及其依赖
 > │   ├── 移植脚本/                        # Mobile 集成 + UTE 修复脚本集
 > │   ├── apktool_3.0.3.jar
 > │   ├── apksigner.jar
@@ -95,8 +94,8 @@ cd GameMaker-Mobiler/bin/Release/net8.0-windows
 
 版本检测采用「双重验证 + 三层下限」策略：
 
-1. **优先 UTMT 完整 Reader**：调用 `UndertaleModCli.exe` 加载 data 文件，输出 `Data.GeneralInfo.*`，这是最准确的结果
-2. **回退内置启发式**（UTMT 不可用时）：
+1. **使用 UndertaleModLib 完整 Reader**：由应用内置库加载 data 文件，输出 `Data.GeneralInfo.*`，并自动执行 chunk 特征检测
+2. **使用内置脚本引擎**：通过 `CSharpScript.EvaluateAsync` 执行 `.csx`，不再启动外部 CLI 进程
    - 读取 `GEN8` chunk 原始版本号 + BytecodeVersion
    - 应用 **chunk 名下限**（UILR→2024.13、PSEM→2023.2、FEAT→2022.8 等）
    - 应用 **结构级下限**：
@@ -119,7 +118,8 @@ GameMaker-Mobiler/
 ├── GameMaker-Mobiler/                # WPF 主项目
 │   ├── Services/
 │   │   ├── DataWinVersionReader.cs   # data.win 版本解析（核心）
-│   │   ├── UtmtService.cs            # UTMT CLI 封装：Mobile 集成 + UTE 修复
+│   │   ├── UtmtService.cs            # 内置 UTMT 脚本引擎：Mobile 集成 + UTE 修复
+│   │   ├── UtmtScriptGlobals.cs      # CSX 脚本全局对象与执行宿主
 │   │   ├── ApkBuilder.cs             # APK 构建管线（解包→注入→重打包→对齐→签名）
 │   │   └── GameInfo.cs               # 游戏上下文记录
 │   ├── Styles/
@@ -133,7 +133,6 @@ GameMaker-Mobiler/
 │   ├── 2.0.6.apk  2.2.2.apk  2.3.0.apk ... 2024.14.apk
 │   └── （共 19 个模板）
 ├── Tools/
-│   ├── UTMT_CLI_v0.9.1.2-Windows/    # UndertaleModTool CLI 发行版
 │   ├── 移植脚本/
 │   │   ├── 安卓脚本v2.0/
 │   │   │   ├── Mobile集成脚本.csx     # 注入 Mobile 控件对象与全局变量
@@ -196,7 +195,7 @@ BuildApkAsync()
 2. **UTE 修复脚本**（检测到 UTE 时自动执行）：
    - GMS ≥ 2.3.0 → `Ute控制台和路径修复.csx`（`Lang_LoadString` 等脚本改为相对路径，移除控制台宏）
    - GMS < 2.3.0 → `旧版Ute控制台和路径修复.csx`
-3. **写入全局变量**：通过 `replace` 命令覆盖 `gml_Object_mb_cont_mobile_Create_0`，写入 5 个开关值
+3. **写入全局变量**：通过 `CodeImportGroup` 覆盖 `gml_Object_mb_cont_mobile_Create_0`，写入 5 个开关值
 
 ## 📱 支持的 GameMaker 版本
 
@@ -214,9 +213,6 @@ BuildApkAsync()
 
 **Q: 提示「未找到任何 APK 模板文件」**
 A: 检查仓库根目录 `GMS2 APK/` 是否包含 `.apk` 文件，且生成的 `.exe` 相对路径 `../../../../GMS2 APK/` 可解析到该目录。
-
-**Q: 提示「UndertaleModCli.exe not found」**
-A: 确认 `Tools/UTMT_CLI_v0.9.1.2-Windows/UndertaleModCli.exe` 存在。`Tools/` 目录需与构建输出目录保持相对层级一致。
 
 **Q: 移植后 APK 闪退**
 A: 常见原因：
