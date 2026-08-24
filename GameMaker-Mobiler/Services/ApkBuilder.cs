@@ -127,6 +127,7 @@ public class ApkBuilder
         string? iconPath,
         string? splashPath,
         bool isUteTemplate,
+        bool embedMusicInDataWin,
         IProgress<(int Percent, string Message)> progress,
         CancellationToken cancellationToken)
     {
@@ -150,6 +151,7 @@ public class ApkBuilder
             packageName,
             version,
             isUteTemplate,
+            embedMusicInDataWin,
             cancellationToken);
 
         if (!string.IsNullOrEmpty(iconPath) && File.Exists(iconPath))
@@ -189,6 +191,7 @@ public class ApkBuilder
         string packageName,
         string version,
         bool isUteTemplate,
+        bool embedMusicInDataWin,
         CancellationToken cancellationToken)
     {
         var toolsDir = RuntimePaths.ToolsDirectory;
@@ -232,7 +235,7 @@ public class ApkBuilder
             Path.Combine(assetsDirectory, "game.droid"),
             overwrite: true);
 
-        CopyGameResources(gameDir, assetsDirectory, isUteTemplate);
+        CopyGameResources(gameDir, assetsDirectory, isUteTemplate, embedMusicInDataWin);
 
         if (isUteTemplate)
         {
@@ -613,6 +616,7 @@ public class ApkBuilder
         string gameDir,
         string dataWinPath,
         bool isUteTemplate,
+        bool embedMusicInDataWin,
         CancellationToken cancellationToken)
     {
         var tempExtractDir = Path.Combine(Path.GetTempPath(), $"gm_mobiler_{Guid.NewGuid():N}");
@@ -639,7 +643,7 @@ public class ApkBuilder
                 Log("data.win 已改名为 game.droid 并注入 APK");
             }
 
-            CopyGameResources(gameDir, assetsDir, isUteTemplate);
+            CopyGameResources(gameDir, assetsDir, isUteTemplate, embedMusicInDataWin);
 
             if (isUteTemplate)
             {
@@ -699,7 +703,7 @@ public class ApkBuilder
         }
     }
 
-    private void CopyGameResources(string gameDir, string assetsDir, bool isUteTemplate)
+    private void CopyGameResources(string gameDir, string assetsDir, bool isUteTemplate, bool embedMusicInDataWin)
     {
         var skipFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -711,6 +715,8 @@ public class ApkBuilder
         {
             var fileName = Path.GetFileName(file);
             if (skipFiles.Contains(fileName) || IsExcludedGameResource(file)) continue;
+            // 已勾选「把音乐内置进 data.win」时，源目录里的音频文件不再拷贝进 APK，避免重复打包
+            if (embedMusicInDataWin && IsEmbeddedAudioResource(file)) continue;
 
             var targetPath = Path.Combine(assetsDir, fileName);
             File.Copy(file, targetPath, overwrite: true);
@@ -727,7 +733,7 @@ public class ApkBuilder
             if (Directory.Exists(targetDir))
                 Directory.Delete(targetDir, recursive: true);
 
-            CopyDirectory(sourceDir, targetDir);
+            CopyDirectory(sourceDir, targetDir, embedMusicInDataWin);
             Log($"注入目录: {dirName}/");
         }
     }
@@ -761,11 +767,16 @@ public class ApkBuilder
     }
 
     private static void CopyDirectory(string sourceDir, string targetDir)
+        => CopyDirectory(sourceDir, targetDir, embedMusicInDataWin: false);
+
+    private static void CopyDirectory(string sourceDir, string targetDir, bool embedMusicInDataWin)
     {
         Directory.CreateDirectory(targetDir);
         foreach (var file in Directory.GetFiles(sourceDir))
         {
             if (IsExcludedGameResource(file)) continue;
+            // 已勾选内置音乐时，子目录下的音频文件同样跳过，避免 assets/data 等子路径里还留一份
+            if (embedMusicInDataWin && IsEmbeddedAudioResource(file)) continue;
 
             var targetFile = Path.Combine(targetDir, Path.GetFileName(file));
             File.Copy(file, targetFile, overwrite: true);
@@ -773,7 +784,7 @@ public class ApkBuilder
         foreach (var dir in Directory.GetDirectories(sourceDir))
         {
             var targetSubDir = Path.Combine(targetDir, Path.GetFileName(dir));
-            CopyDirectory(dir, targetSubDir);
+            CopyDirectory(dir, targetSubDir, embedMusicInDataWin);
         }
     }
 
@@ -797,6 +808,19 @@ public class ApkBuilder
     private static bool IsExcludedGameResource(string filePath)
     {
         return string.Equals(Path.GetExtension(filePath), ".exe", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 判定文件是否属于「音乐内置进 data.win」时可跳过的音频资源。
+    /// 对应「导入所有音乐.csx」接受的 .ogg/.wav 两类，另外补充常见的 .mp3 避免遗漏。
+    /// </summary>
+    private static bool IsEmbeddedAudioResource(string filePath)
+    {
+        var ext = Path.GetExtension(filePath);
+        if (string.IsNullOrEmpty(ext)) return false;
+        return string.Equals(ext, ".ogg", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(ext, ".wav", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(ext, ".mp3", StringComparison.OrdinalIgnoreCase);
     }
 
     private void StripLocalePrefixes(string assetsDir)

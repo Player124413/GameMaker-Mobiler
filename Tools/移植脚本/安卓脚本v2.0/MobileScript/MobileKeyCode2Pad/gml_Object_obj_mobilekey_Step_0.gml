@@ -1,8 +1,3 @@
-var _gui_width = display_get_gui_width();
-var _gui_height = display_get_gui_height();
-var _gui_right = _gui_width - 640;
-var _gui_bottom = _gui_height - 480;
-
 if (keyboard_check_pressed(mk_up_left_button))
 {
     if (global.mubai == 0)
@@ -37,40 +32,36 @@ if (global.mubai == 0)
     {
         var _ak = 0;
         var _ak2 = 0;
-        var _touch_x = device_mouse_x_to_gui(i);
-        var _touch_y = device_mouse_y_to_gui(i);
-        var _layout_x = (_touch_x >= _gui_width * 0.5) ? _touch_x - _gui_right : _touch_x;
-        var _layout_y = (_touch_y >= _gui_height * 0.5) ? _touch_y - _gui_bottom : _touch_y;
         
         if (device_mouse_check_button(i, mb_left))
         {
-            if (_layout_x >= 560)
+            if (device_mouse_x_to_gui(i) >= 560)
             {
                 cz = 0.5;
                 _ak = mk_z_button;
             }
-            else if (_layout_x >= 480)
+            else if (device_mouse_x_to_gui(i) >= 480)
             {
                 cx = 0.5;
                 _ak = mk_x_button;
             }
-            else if (_layout_x >= 400)
+            else if (device_mouse_x_to_gui(i) >= 400)
             {
                 cg = 0.5;
                 _ak = mk_c_button;
             }
-            else if (_layout_x <= 80 && _layout_x >= 0 && _layout_y <= 50)
+            else if (device_mouse_x_to_gui(i) <= 80 && device_mouse_x_to_gui(i) >= 0 && device_mouse_y_to_gui(i) <= 50)
             {
                 mubai = 0.5;
                 _ak = mk_up_left_button;
             }
             else if (!_m)
             {
-                if (_layout_x < 400)
+                if (device_mouse_x_to_gui(i) < 400)
                 {
                     _m = 1;
-                    var _dx = _layout_x - 140;
-                    var _dy = _layout_y - 360;
+                    var _dx = device_mouse_x_to_gui(i) - 140;
+                    var _dy = device_mouse_y_to_gui(i) - 360;
                     var _da = point_direction(0, 0, _dx, _dy);
                     
                     if (_da >= 292.5 || _da <= 67.5)
@@ -206,17 +197,13 @@ if (global.mubai == 1)
     {
         var _ak = 0;
         var _ak2 = 0;
-        var _touch_x = device_mouse_x_to_gui(i);
-        var _touch_y = device_mouse_y_to_gui(i);
-        var _layout_x = (_touch_x >= _gui_width * 0.5) ? _touch_x - _gui_right : _touch_x;
-        var _layout_y = (_touch_y >= _gui_height * 0.5) ? _touch_y - _gui_bottom : _touch_y;
         var _entered_left = 0;
         var _entered_right = 0;
         
         if (device_mouse_check_button(i, mb_left))
         {
-            var _mx = _layout_x;
-            var _my = _layout_y;
+            var _mx = device_mouse_x_to_gui(i);
+            var _my = device_mouse_y_to_gui(i);
             
             if (_my < 50 && _mx >= 320 && _mx < 640)
             {
@@ -435,4 +422,3 @@ if (global.mubai == 1)
     if (mubai == 1 && keyboard_check(mk_up_left_button))
         keyboard_key_release(mk_up_left_button);
 }
-

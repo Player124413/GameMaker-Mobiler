@@ -64,9 +64,9 @@ public sealed class UtmtService
             throw new FileNotFoundException("data.win not found", dataWinPath);
         }
 
-        if (options is null || options.Length < 5)
+        if (options is null || options.Length < 6)
         {
-            throw new ArgumentException("options must contain 5 values", nameof(options));
+            throw new ArgumentException("options must contain 6 values", nameof(options));
         }
 
         var addMobileKey = options[0];
@@ -74,6 +74,7 @@ public sealed class UtmtService
         var mobileHeal = options[2];
         var mobileCn = options[3];
         var androidSystemKeyboard = options[4];
+        var embedMusicIntoDataWin = options[5];
 
         var gameDir = Path.GetDirectoryName(dataWinPath) ?? string.Empty;
         var isUte = DetectUteTemplate(gameDir);
@@ -96,6 +97,7 @@ public sealed class UtmtService
             var scriptGlobals = new UtmtScriptGlobals(
                 data,
                 workingOutputPath,
+                gameDir,
                 _log,
                 cancellationToken);
 
@@ -131,6 +133,24 @@ public sealed class UtmtService
             else
             {
                 _log?.Invoke("非 UTE 模板游戏，跳过 UTE 修复脚本。", false);
+            }
+
+            // Step 3: 将 data.win 目录下的音乐内置进 data.win（用户可勾选）
+            if (embedMusicIntoDataWin)
+            {
+                var importMusicScriptPath = GetImportAllMusicScriptPath();
+                if (!File.Exists(importMusicScriptPath))
+                {
+                    throw new FileNotFoundException("Import all music script not found", importMusicScriptPath);
+                }
+
+                _log?.Invoke($"已勾选音乐内置，执行导入所有音乐脚本: {Path.GetFileName(importMusicScriptPath)}", false);
+                _log?.Invoke($"音乐导入目录（真实游戏目录）: {gameDir}", false);
+                await scriptGlobals.RunScriptFileAsync(importMusicScriptPath).ConfigureAwait(false);
+            }
+            else
+            {
+                _log?.Invoke("未勾选音乐内置：跳过导入所有音乐脚本。", false);
             }
 
             var templatePath = GetMobileContTemplatePath();
@@ -239,6 +259,11 @@ public sealed class UtmtService
     private static string GetIntegrationScriptPath()
     {
         return Path.Combine(RuntimePaths.ToolsDirectory, "移植脚本", "安卓脚本v2.0", "Mobile集成脚本.csx");
+    }
+
+    private static string GetImportAllMusicScriptPath()
+    {
+        return Path.Combine(RuntimePaths.ToolsDirectory, "移植脚本", "导入所有音乐.csx");
     }
 
     private static string GetMobileContTemplatePath()

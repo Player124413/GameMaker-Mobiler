@@ -1,12 +1,3 @@
-var _gui_width = display_get_gui_width();
-var _gui_height = display_get_gui_height();
-var _gui_right = _gui_width - 640;
-var _gui_bottom = _gui_height - 480;
-var _touch_x = device_mouse_x_to_gui(0);
-var _touch_y = device_mouse_y_to_gui(0);
-var _layout_x = (_touch_x >= _gui_width * 0.5) ? _touch_x - _gui_right : _touch_x;
-var _layout_y = (_touch_y >= _gui_height * 0.5) ? _touch_y - _gui_bottom : _touch_y;
-
 if (global.Android_System_Keyboard == 1)
 {
     if (keyboard_check_pressed(vk_numpad9))
@@ -15,11 +6,11 @@ if (global.Android_System_Keyboard == 1)
 
 if (keyboard_check(126))
 {
-    if (_layout_x >= analog_posx && _layout_x <= (analog_posx + (59 * analog_scale)))
-        analog_center_x = _layout_x - (21 * analog_scale);
+    if (device_mouse_x_to_gui(0) >= analog_posx && device_mouse_x_to_gui(0) <= (analog_posx + (59 * analog_scale)))
+        analog_center_x = device_mouse_x_to_gui(0) - (21 * analog_scale);
     
-    if (_layout_y >= analog_posy && _layout_y <= (analog_posy + (59 * analog_scale)))
-        analog_center_y = _layout_y - (21 * analog_scale);
+    if (device_mouse_y_to_gui(0) >= analog_posy && device_mouse_y_to_gui(0) <= (analog_posy + (59 * analog_scale)))
+        analog_center_y = device_mouse_y_to_gui(0) - (21 * analog_scale);
 }
 else
 {
@@ -163,36 +154,36 @@ if (active_key != -1 && keyboard_check_released(active_key))
 
 if (active_key == 125)
 {
-    zx = _layout_x - (13.5 * button_scale);
-    zy = _layout_y - (12.5 * button_scale);
+    zx = device_mouse_x_to_gui(0) - (13.5 * button_scale);
+    zy = device_mouse_y_to_gui(0) - (12.5 * button_scale);
 }
 else if (active_key == 124)
 {
-    xx = _layout_x - (13.5 * button_scale);
-    xy = _layout_y - (12.5 * button_scale);
+    xx = device_mouse_x_to_gui(0) - (13.5 * button_scale);
+    xy = device_mouse_y_to_gui(0) - (12.5 * button_scale);
 }
 else if (active_key == 94)
 {
-    cx = _layout_x - (13.5 * button_scale);
-    cy = _layout_y - (12.5 * button_scale);
+    cx = device_mouse_x_to_gui(0) - (13.5 * button_scale);
+    cy = device_mouse_y_to_gui(0) - (12.5 * button_scale);
 }
 else if (active_key == 101)
 {
-    f2x = _layout_x - (13.5 * button_scale);
-    f2y = _layout_y - (12.5 * button_scale);
+    f2x = device_mouse_x_to_gui(0) - (13.5 * button_scale);
+    f2y = device_mouse_y_to_gui(0) - (12.5 * button_scale);
 }
 else if (active_key == 96)
 {
-    hx = _layout_x - (13.5 * button_scale);
-    hy = _layout_y - (12.5 * button_scale);
+    hx = device_mouse_x_to_gui(0) - (13.5 * button_scale);
+    hy = device_mouse_y_to_gui(0) - (12.5 * button_scale);
 }
 else if (active_key == 93)
 {
-    analog_posx = _layout_x - (29.5 * analog_scale);
-    analog_posy = _layout_y - (29.5 * analog_scale);
+    analog_posx = device_mouse_x_to_gui(0) - (29.5 * analog_scale);
+    analog_posy = device_mouse_y_to_gui(0) - (29.5 * analog_scale);
 }
 
-if (_layout_x >= 440.5 && _layout_y >= 75 && _layout_x <= 469.5 && _layout_y <= 93 && mouse_check_button_pressed(mb_left))
+if (device_mouse_x_to_gui(0) >= 440.5 && device_mouse_y_to_gui(0) >= 75 && device_mouse_x_to_gui(0) <= 469.5 && device_mouse_y_to_gui(0) <= 93 && mouse_check_button_pressed(mb_left))
 {
     if (button_scale > 1)
     {
@@ -205,13 +196,13 @@ if (_layout_x >= 440.5 && _layout_y >= 75 && _layout_x <= 469.5 && _layout_y <= 
     }
 }
 
-if (_layout_x >= 531.5 && _layout_y >= 75 && _layout_x <= 561.5 && _layout_y <= 93 && mouse_check_button_pressed(mb_left))
+if (device_mouse_x_to_gui(0) >= 531.5 && device_mouse_y_to_gui(0) >= 75 && device_mouse_x_to_gui(0) <= 561.5 && device_mouse_y_to_gui(0) <= 93 && mouse_check_button_pressed(mb_left))
 {
     button_scale += 0.1;
     audio_play_sound(snd_coin_mobile, 0, false);
 }
 
-if (_layout_x >= 440.5 && _layout_y >= 121 && _layout_x <= 469.5 && _layout_y <= 139 && mouse_check_button_pressed(mb_left))
+if (device_mouse_x_to_gui(0) >= 440.5 && device_mouse_y_to_gui(0) >= 121 && device_mouse_x_to_gui(0) <= 469.5 && device_mouse_y_to_gui(0) <= 139 && mouse_check_button_pressed(mb_left))
 {
     if (analog_scale > 1)
     {
@@ -224,13 +215,13 @@ if (_layout_x >= 440.5 && _layout_y >= 121 && _layout_x <= 469.5 && _layout_y <=
     }
 }
 
-if (_layout_x >= 531.5 && _layout_y >= 121 && _layout_x <= 561.5 && _layout_y <= 139 && mouse_check_button_pressed(mb_left))
+if (device_mouse_x_to_gui(0) >= 531.5 && device_mouse_y_to_gui(0) >= 121 && device_mouse_x_to_gui(0) <= 561.5 && device_mouse_y_to_gui(0) <= 139 && mouse_check_button_pressed(mb_left))
 {
     analog_scale += 0.1;
     audio_play_sound(snd_coin_mobile, 0, false);
 }
 
-if (_layout_x >= 440.5 && _layout_y >= 167 && _layout_x <= 469.5 && _layout_y <= 185 && mouse_check_button_pressed(mb_left))
+if (device_mouse_x_to_gui(0) >= 440.5 && device_mouse_y_to_gui(0) >= 167 && device_mouse_x_to_gui(0) <= 469.5 && device_mouse_y_to_gui(0) <= 185 && mouse_check_button_pressed(mb_left))
 {
     if (joystick_type == 1)
     {
@@ -243,7 +234,7 @@ if (_layout_x >= 440.5 && _layout_y >= 167 && _layout_x <= 469.5 && _layout_y <=
     }
 }
 
-if (_layout_x >= 531.5 && _layout_y >= 167 && _layout_x <= 561.5 && _layout_y <= 185 && mouse_check_button_pressed(mb_left))
+if (device_mouse_x_to_gui(0) >= 531.5 && device_mouse_y_to_gui(0) >= 167 && device_mouse_x_to_gui(0) <= 561.5 && device_mouse_y_to_gui(0) <= 185 && mouse_check_button_pressed(mb_left))
 {
     if (joystick_type == 0)
     {
@@ -256,7 +247,7 @@ if (_layout_x >= 531.5 && _layout_y >= 167 && _layout_x <= 561.5 && _layout_y <=
     }
 }
 
-if (_layout_x >= 440.5 && _layout_y >= 213 && _layout_x <= 469.5 && _layout_y <= 231 && mouse_check_button_pressed(mb_left))
+if (device_mouse_x_to_gui(0) >= 440.5 && device_mouse_y_to_gui(0) >= 213 && device_mouse_x_to_gui(0) <= 469.5 && device_mouse_y_to_gui(0) <= 231 && mouse_check_button_pressed(mb_left))
 {
     if (controls_opacity > 0.1)
     {
@@ -269,7 +260,7 @@ if (_layout_x >= 440.5 && _layout_y >= 213 && _layout_x <= 469.5 && _layout_y <=
     }
 }
 
-if (_layout_x >= 531.5 && _layout_y >= 213 && _layout_x <= 561.5 && _layout_y <= 231 && mouse_check_button_pressed(mb_left))
+if (device_mouse_x_to_gui(0) >= 531.5 && device_mouse_y_to_gui(0) >= 213 && device_mouse_x_to_gui(0) <= 561.5 && device_mouse_y_to_gui(0) <= 231 && mouse_check_button_pressed(mb_left))
 {
     if (controls_opacity < 1)
     {
@@ -282,7 +273,7 @@ if (_layout_x >= 531.5 && _layout_y >= 213 && _layout_x <= 561.5 && _layout_y <=
     }
 }
 
-if (_layout_x >= 241 && _layout_y >= 412.25 && _layout_x <= 399 && _layout_y <= 436.25 && mouse_check_button_pressed(mb_left))
+if (device_mouse_x_to_gui(0) >= 241 && device_mouse_y_to_gui(0) >= 412.25 && device_mouse_x_to_gui(0) <= 399 && device_mouse_y_to_gui(0) <= 436.25 && mouse_check_button_pressed(mb_left))
 {
     audio_play_sound(snd_noise_mobile, 0, false);
     zx = 404;
@@ -302,4 +293,3 @@ if (_layout_x >= 241 && _layout_y >= 412.25 && _layout_x <= 399 && _layout_y <= 
     joystick_type = 0;
     controls_opacity = 0.5;
 }
-

@@ -577,7 +577,8 @@ namespace GameMaker_Mobiler
                 MobileF2CheckBox.IsChecked == true,
                 MobileHealCheckBox.IsChecked == true,
                 MobileCnCheckBox.IsChecked == true,
-                AndroidKeyboardCheckBox.IsChecked == true
+                AndroidKeyboardCheckBox.IsChecked == true,
+                EmbedMusicCheckBox.IsChecked == true
             };
 
             var packageName = PackageNameTextBox.Text.Trim();
@@ -635,6 +636,7 @@ namespace GameMaker_Mobiler
                 AddLog($"使用模板: {Path.GetFileName(templateApk)}");
 
                 AddLog("步骤 3-5: 构建 APK...");
+                bool embedMusic = EmbedMusicCheckBox.IsChecked == true;
                 await _apkBuilder.BuildApkAsync(
                     templateApk,
                     _currentGameInfo.SourceDirectory,
@@ -646,6 +648,7 @@ namespace GameMaker_Mobiler
                     _selectedIconPath,
                     _selectedSplashPath,
                     _currentGameInfo.IsUteTemplate,
+                    embedMusic,
                     progress,
                     _portingCts.Token);
 
@@ -731,6 +734,7 @@ namespace GameMaker_Mobiler
             MobileHealCheckBox.IsChecked = false;
             MobileCnCheckBox.IsChecked = true;
             AndroidKeyboardCheckBox.IsChecked = false;
+            EmbedMusicCheckBox.IsChecked = false;
 
             BuildProgressBar.Value = 0;
             ProgressTextBlock.Text = "0%";

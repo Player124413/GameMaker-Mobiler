@@ -26,11 +26,15 @@ public sealed class UtmtScriptGlobals
     public UtmtScriptGlobals(
         UndertaleData data,
         string filePath,
+        string? gameDirectory,
         Action<string, bool>? log,
         CancellationToken cancellationToken)
     {
         Data = data ?? throw new ArgumentNullException(nameof(data));
         FilePath = Path.GetFullPath(filePath);
+        GameDirectory = string.IsNullOrWhiteSpace(gameDirectory)
+            ? Path.GetDirectoryName(FilePath) ?? string.Empty
+            : Path.GetFullPath(gameDirectory);
         _log = log;
         _cancellationToken = cancellationToken;
         _scriptOptions = ScriptingUtil.CreateDefaultScriptOptions()
@@ -44,7 +48,16 @@ public sealed class UtmtScriptGlobals
 
     public UndertaleData Data { get; }
 
+    /// <summary>
+    /// 当前正在操作的 data.win 物理路径（可能是临时副本）。
+    /// </summary>
     public string FilePath { get; }
+
+    /// <summary>
+    /// 用户真实选中的游戏目录（即原始 data.win 所在目录）。
+    /// 用于音乐导入、音频组 .dat 读写等需要访问源目录的场景，避免脚本在临时副本目录里找不到文件。
+    /// </summary>
+    public string GameDirectory { get; }
 
     public string ScriptPath => _scriptPath;
 
@@ -108,6 +121,31 @@ public sealed class UtmtScriptGlobals
     }
 
     public void HideProgressBar()
+    {
+    }
+
+    /// <summary>
+    /// 移植流水线中禁用所有弹窗询问：统一按照“是/确认”处理，避免阻塞非交互流水线。
+    /// 项目约束：Mobile集成脚本.csx 必须将所有 ScriptQuestion hook 变量设为 true 以抑制对话框。
+    /// </summary>
+    public bool ScriptQuestion(string message) => true;
+
+    /// <summary>
+    /// 选择音乐导入目录时优先返回真实游戏目录（用户选中的源目录），
+    /// 这样即使 data.win 被复制到临时路径，也能正确扫描到源目录下的音乐文件。
+    /// </summary>
+    public string? PromptChooseDirectory()
+    {
+        var dir = !string.IsNullOrEmpty(GameDirectory) && Directory.Exists(GameDirectory)
+            ? GameDirectory
+            : Path.GetDirectoryName(FilePath);
+        return string.IsNullOrEmpty(dir) || !Directory.Exists(dir) ? null : dir;
+    }
+
+    /// <summary>
+    /// UTMT 的 SyncBinding 解除钩子；当前实现不维护绑定，空实现即可。
+    /// </summary>
+    public void DisableAllSyncBindings()
     {
     }
 
