@@ -770,6 +770,8 @@ Section "MainSection" SEC01
   File "Tools\移植脚本\安卓脚本v2.0\MobileScript\MobileKeyCodeButton5\gml_Object_obj_mobilekey_Create_0.gml"
   File "Tools\移植脚本\安卓脚本v2.0\MobileScript\MobileKeyCodeButton5\gml_Object_obj_mobilekey_Draw_75.gml"
   File "Tools\移植脚本\安卓脚本v2.0\MobileScript\MobileKeyCodeButton5\gml_Object_obj_mobilekey_Step_0.gml"
+  SetOutPath "$INSTDIR\Tools\移植脚本\安卓脚本v2.0"
+  File "Tools\移植脚本\导入所有音乐.csx"
   SetOutPath "$INSTDIR\Tools\移植脚本\安卓脚本v2.0\MobileScript\MobileSound"
   File "Tools\移植脚本\安卓脚本v2.0\MobileScript\MobileSound\snd_coin_mobile.ogg"
   File "Tools\移植脚本\安卓脚本v2.0\MobileScript\MobileSound\snd_egg_mobile.ogg"
