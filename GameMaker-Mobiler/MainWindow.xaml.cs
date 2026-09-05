@@ -43,8 +43,21 @@ namespace GameMaker_Mobiler
             SubOptionsContainer.Visibility = Visibility.Collapsed;
 
             Logs.CollectionChanged += OnLogsCollectionChanged;
-            Logs.Add("应用启动完成。当前主题：浅色。");
-            Logs.Add("请选择或拖拽 data.win 开始移植。");
+            Logs.Add("Application started. Theme: Light.");
+            Logs.Add("Select or drag in a data.win file to begin.");
+
+            // Apktool and the other Java tools cannot handle non-ASCII paths (for example a
+            // Cyrillic Windows user name in %TEMP%), so the build runs in an ASCII-only folder.
+            Logs.Add($"Working folder: {SafeWorkspace.Root}");
+            if (SafeWorkspace.SystemTempIsUnsafe)
+            {
+                AddLog(
+                    "The system temporary folder contains non-ASCII characters (for example a Cyrillic "
+                    + "user name). An ASCII-only working folder is used instead so Apktool does not fail.",
+                    true);
+            }
+
+            SafeWorkspace.CleanupStaleDirectories(TimeSpan.FromDays(1));
 
             UpdateStartPortingAvailability();
         }
@@ -62,8 +75,8 @@ namespace GameMaker_Mobiler
             Background = themeBackground;
             RootLayout.Background = themeBackground;
 
-            ThemeToggleButton.Content = _useDarkTheme ? "切换浅色" : "切换深色";
-            Logs.Add(_useDarkTheme ? "主题已切换为深色。" : "主题已切换为浅色。");
+            ThemeToggleButton.Content = _useDarkTheme ? "Light mode" : "Dark mode";
+            Logs.Add(_useDarkTheme ? "Theme switched to Dark." : "Theme switched to Light.");
         }
 
         private void OnLogsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -80,8 +93,8 @@ namespace GameMaker_Mobiler
         {
             var dialog = new OpenFileDialog
             {
-                Title = "选择 data.win",
-                Filter = "GameMaker 数据文件 (data.win)|data.win|所有文件|*.*",
+                Title = "Select data.win",
+                Filter = "GameMaker data file (data.win)|data.win|All files|*.*",
                 CheckFileExists = true,
                 Multiselect = false
             };
@@ -115,7 +128,7 @@ namespace GameMaker_Mobiler
 
             if (!TryGetDroppedPath(e, out var droppedPath) || string.IsNullOrWhiteSpace(droppedPath))
             {
-                AddLog("错误：未识别到有效拖拽路径。", true);
+                AddLog("Error: no valid path was recognized in the drop.", true);
                 return;
             }
 
@@ -167,11 +180,11 @@ namespace GameMaker_Mobiler
             {
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    GameVersionTextBlock.Text = "版本：检测失败";
-                    DataWinPathTextBlock.Text = "data.win 路径：未检测";
+                    GameVersionTextBlock.Text = "Version: detection failed";
+                    DataWinPathTextBlock.Text = "data.win path: not detected";
                 });
 
-                AddLog("错误：所选路径不包含 data.win。", true);
+                AddLog("Error: the selected path does not contain data.win.", true);
                 return;
             }
 
@@ -181,13 +194,23 @@ namespace GameMaker_Mobiler
             await Dispatcher.InvokeAsync(() =>
             {
                 SourcePathTextBox.Text = sourceDirectory;
-                DataWinPathTextBlock.Text = $"data.win 路径：{dataWinPath}";
-                GameVersionTextBlock.Text = "版本：检测中...";
+                DataWinPathTextBlock.Text = $"data.win path: {dataWinPath}";
+                GameVersionTextBlock.Text = "Version: detecting...";
                 StartPortingButton.IsEnabled = false;
-                StatusTextBlock.Text = "检测 data.win...";
+                StatusTextBlock.Text = "Inspecting data.win...";
             });
 
-            AddLog($"已选择目录：{sourceDirectory}");
+            AddLog($"Selected folder: {sourceDirectory}");
+
+            // The game folder itself is passed to Apktool, which fails on non-ASCII paths.
+            if (!SafeWorkspace.IsPathSafe(sourceDirectory))
+            {
+                AddLog(
+                    "Warning: the game folder path contains non-ASCII characters (for example Cyrillic). "
+                    + "Apktool may fail with \"error: failed to open directory\". "
+                    + "Move the game to a path made of Latin letters, e.g. C:\\Games\\MyGame.",
+                    true);
+            }
 
             var version = await Task.Run(() => DataWinVersionReader.Read(dataWinPath)).ConfigureAwait(false);
             var isUte = DetectUteTemplate(sourceDirectory);
@@ -196,12 +219,12 @@ namespace GameMaker_Mobiler
             await Dispatcher.InvokeAsync(() =>
             {
                 GameVersionTextBlock.Text = version.IsValid
-                    ? $"版本：{version.DisplayVersion}"
-                    : "版本：未知";
+                    ? $"Version: {version.DisplayVersion}"
+                    : "Version: unknown";
 
                 UteStatusTextBlock.Text = isUte
-                    ? "✓ 旧 UTE 模板游戏（将自动执行修复脚本）"
-                    : "✗ 非旧 UTE 模板游戏";
+                    ? "✓ Legacy UTE template game (repair script will run automatically)"
+                    : "✗ Not a legacy UTE template game";
                 UteStatusTextBlock.Foreground = isUte
                     ? (Brush)Application.Current.FindResource("SuccessBrush")
                     : (Brush)Application.Current.FindResource("TextMutedBrush");
@@ -211,18 +234,18 @@ namespace GameMaker_Mobiler
 
             if (version.IsValid)
             {
-                AddLog($"版本检测成功：{version.DisplayVersion} (Major={version.Major}, Minor={version.Minor}, Release={version.Release}, Build={version.Build}, Bytecode={version.BytecodeVersion})");
+                AddLog($"Version detected: {version.DisplayVersion} (Major={version.Major}, Minor={version.Minor}, Release={version.Release}, Build={version.Build}, Bytecode={version.BytecodeVersion})");
                 AddLog(version.IsYyc
-                    ? "  · 编译方式：YYC（不支持植入脚本，开始移植已禁用）"
-                    : "  · 编译方式：VM");
-                AddLog($"  · 原始 GEN8 版本：{version.RawGen8Version}");
-                AddLog($"  · 特征 chunk 下限：{version.ChunkNameFloor}");
-                AddLog($"  · 结构级下限：{version.StructuralFloor}");
-                AddLog(isUte ? "  · UTE 模板：是（可执行修复脚本）" : "  · UTE 模板：否（仅 Mobile 集成可用）");
+                    ? "  - Compiler: YYC (script injection unsupported, porting disabled)"
+                    : "  - Compiler: VM");
+                AddLog($"  - Raw GEN8 version: {version.RawGen8Version}");
+                AddLog($"  - Chunk-name floor: {version.ChunkNameFloor}");
+                AddLog($"  - Structural floor: {version.StructuralFloor}");
+                AddLog(isUte ? "  - UTE template: yes (repair script available)" : "  - UTE template: no (mobile integration only)");
             }
             else
             {
-                AddLog("版本检测失败：未能识别 data.win 对应的 GMS 版本。", true);
+                AddLog("Version detection failed: could not identify the GMS version of data.win.", true);
             }
         }
 
@@ -231,8 +254,8 @@ namespace GameMaker_Mobiler
             RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         /// <summary>
-        /// 前端对应用名称做字符限制：禁止单引号、双引号、XML 特殊字符与控制字符。
-        /// 这些字符会导致 aapt2 编译 strings.xml 失败（例如 "unescaped apostrophe"）。
+        /// Restricts the app name: single/double quotes, XML special characters and control characters are rejected.
+        /// Those characters make aapt2 fail while compiling strings.xml (e.g. "unescaped apostrophe").
         /// </summary>
         private static readonly Regex AppNameAllowedRegex = new(
             @"^[^'\""<>&\x00-\x1F\x7F]{1,64}$",
@@ -257,8 +280,8 @@ namespace GameMaker_Mobiler
         }
 
         /// <summary>
-        /// 校验「应用名称 / 包名 / 版本号」三项前端输入。
-        /// 通过提示文字变红 / 变灰实时提示。
+        /// Validates the app name, package name and version inputs.
+        /// Hint labels turn red or grey to give live feedback.
         /// </summary>
         private void ValidateApkInputs()
         {
@@ -272,84 +295,84 @@ namespace GameMaker_Mobiler
 
             string status;
 
-            // 1) 应用名称
+            // 1) App name
             var appName = AppNameTextBox.Text;
             bool appNameValid;
             if (string.IsNullOrWhiteSpace(appName))
             {
                 appNameValid = false;
-                AppNameHintTextBlock.Text = "应用名称不能为空。";
+                AppNameHintTextBlock.Text = "App name must not be empty.";
             }
             else if (!AppNameAllowedRegex.IsMatch(appName))
             {
                 appNameValid = false;
                 AppNameHintTextBlock.Text =
-                    "非法字符：禁止包含 ' (单引号)、\" (双引号)、< > & 以及控制字符；长度 1~64。";
+                    "Invalid characters: ' \" < > & and control characters are not allowed; length 1-64.";
             }
             else
             {
                 appNameValid = true;
                 AppNameHintTextBlock.Text =
-                    "合法字符：中英文、数字、空格、下划线、连字符。禁止 ' 、\" 、< 、> 、&。";
+                    "Allowed: letters, digits, spaces, underscores and hyphens. Not allowed: ' \" < > &";
             }
           
             AppNameHintTextBlock.Foreground = appNameValid ? validBrush : errorBrush;
             ToolTipService.SetToolTip(AppNameTextBox, appNameValid ? null : AppNameHintTextBlock.Text);
 
-            // 2) 包名
+            // 2) Package name
             var packageName = PackageNameTextBox.Text.Trim();
             bool packageValid;
             if (string.IsNullOrWhiteSpace(packageName))
             {
                 packageValid = false;
-                PackageNameHintTextBlock.Text = "包名不能为空。";
+                PackageNameHintTextBlock.Text = "Package name must not be empty.";
             }
             else if (!PackageNameRegex.IsMatch(packageName))
             {
                 packageValid = false;
                 PackageNameHintTextBlock.Text =
-                    "格式错误：字母开头，仅字母 / 数字 / 下划线，用 . 分段且至少两段。例：com.example.mygame";
+                    "Invalid format: must start with a letter, contain only letters / digits / underscores, be dot-separated with at least two parts. Example: com.example.mygame";
             }
             else
             {
                 packageValid = true;
                 PackageNameHintTextBlock.Text =
-                    "格式：字母开头，仅字母 / 数字 / 下划线，以 . 分段，至少两段。例：com.example.mygame";
+                    "Format: starts with a letter, only letters / digits / underscores, dot-separated, at least two parts. Example: com.example.mygame";
             }
             PackageNameHintTextBlock.Foreground = packageValid ? validBrush : errorBrush;
             ToolTipService.SetToolTip(PackageNameTextBox, packageValid ? null : PackageNameHintTextBlock.Text);
 
-            // 3) 版本号
+            // 3) Version
             var version = VersionTextBox.Text.Trim();
             bool versionValid;
             if (string.IsNullOrWhiteSpace(version))
             {
                 versionValid = false;
-                VersionHintTextBlock.Text = "版本号不能为空。";
+                VersionHintTextBlock.Text = "Version must not be empty.";
             }
             else if (version.Length > 64)
             {
                 versionValid = false;
-                VersionHintTextBlock.Text = "版本号过长（请≤64个字符）。";
+                VersionHintTextBlock.Text = "Version is too long (64 characters max).";
             }
             else if (version.Any(c => char.IsControl(c) || VersionInvalidChars.Contains(c)))
             {
                 versionValid = false;
-                VersionHintTextBlock.Text = "非法字符：禁止控制字符与路径符号 < > : \" / \\ | ? *。";
+                VersionHintTextBlock.Text = "Invalid characters: control characters and < > : \" / \\ | ? * are not allowed.";
             }
             else
             {
                 versionValid = true;
                 VersionHintTextBlock.Text =
-                    "显示版本（versionName），任意字符串，建议 x.y.z。禁止控制字符与路径非法符号。";
+                    "Display version (versionName). Any string, x.y.z recommended. Control characters and invalid path symbols are rejected.";
             }
             VersionHintTextBlock.Foreground = versionValid ? validBrush : errorBrush;
             ToolTipService.SetToolTip(VersionTextBox, versionValid ? null : VersionHintTextBlock.Text);
 
-            if (!appNameValid) status = "应用名称不合法";
-            else if (!packageValid) status = "包名格式错误";
-            else if (!versionValid) status = "版本号不合法";
-            else status = "就绪";
+            if (!appNameValid) status = "Invalid app name";
+            else if (!packageValid) status = "Invalid package name";
+            else if (!versionValid) status = "Invalid version";
+            else status = "Ready";
 
             _apkInputValidation = (appNameValid, packageValid, versionValid, status);
         }
@@ -361,21 +384,21 @@ namespace GameMaker_Mobiler
             if (_currentGameInfo is null)
             {
                 StartPortingButton.IsEnabled = false;
-                StatusTextBlock.Text = "就绪";
+                StatusTextBlock.Text = "Ready";
                 return;
             }
 
             if (!_currentGameInfo.Version.IsValid)
             {
                 StartPortingButton.IsEnabled = false;
-                StatusTextBlock.Text = "版本未知，无法移植";
+                StatusTextBlock.Text = "Unknown version - cannot port";
                 return;
             }
 
             if (_currentGameInfo.Version.IsYyc)
             {
                 StartPortingButton.IsEnabled = false;
-                StatusTextBlock.Text = "YYC 编译，无法移植";
+                StatusTextBlock.Text = "YYC build - cannot port";
                 return;
             }
 
@@ -389,7 +412,7 @@ namespace GameMaker_Mobiler
             }
 
             StartPortingButton.IsEnabled = true;
-            StatusTextBlock.Text = "就绪";
+            StatusTextBlock.Text = "Ready";
         }
 
         private static string? ResolveDataWinPath(string selectedPath)
@@ -480,8 +503,8 @@ namespace GameMaker_Mobiler
         {
             var dialog = new OpenFileDialog
             {
-                Title = "选择应用图标",
-                Filter = "PNG 图片 (*.png)|*.png|所有文件|*.*",
+                Title = "Select app icon",
+                Filter = "PNG image (*.png)|*.png|All files|*.*",
                 CheckFileExists = true
             };
 
@@ -490,7 +513,7 @@ namespace GameMaker_Mobiler
                 _selectedIconPath = dialog.FileName;
                 IconPathTextBox.Text = dialog.FileName;
                 var fi = new FileInfo(dialog.FileName);
-                IconPreviewTextBlock.Text = $"大小: {fi.Length / 1024} KB";
+                IconPreviewTextBlock.Text = $"Size: {fi.Length / 1024} KB";
             }
         }
 
@@ -498,8 +521,8 @@ namespace GameMaker_Mobiler
         {
             var dialog = new OpenFileDialog
             {
-                Title = "选择加载图片",
-                Filter = "PNG 图片 (*.png)|*.png|所有文件|*.*",
+                Title = "Select splash image",
+                Filter = "PNG image (*.png)|*.png|All files|*.*",
                 CheckFileExists = true
             };
 
@@ -508,7 +531,7 @@ namespace GameMaker_Mobiler
                 _selectedSplashPath = dialog.FileName;
                 SplashPathTextBox.Text = dialog.FileName;
                 var fi = new FileInfo(dialog.FileName);
-                SplashPreviewTextBlock.Text = $"大小: {fi.Length / 1024} KB";
+                SplashPreviewTextBlock.Text = $"Size: {fi.Length / 1024} KB";
             }
         }
 
@@ -516,19 +539,19 @@ namespace GameMaker_Mobiler
         {
             if (_currentGameInfo is null)
             {
-                AddLog("错误：请先选择有效的 data.win。", true);
+                AddLog("Error: select a valid data.win first.", true);
                 return;
             }
 
             if (!_currentGameInfo.Version.IsValid)
             {
-                AddLog("错误：版本尚未识别。", true);
+                AddLog("Error: the version has not been identified yet.", true);
                 return;
             }
 
             if (_currentGameInfo.Version.IsYyc)
             {
-                AddLog("错误：检测到 YYC 编译，当前脚本植入流程不支持移植。", true);
+                AddLog("Error: YYC build detected; the script injection pipeline does not support it.", true);
                 return;
             }
 
@@ -537,11 +560,11 @@ namespace GameMaker_Mobiler
                 !_apkInputValidation.PackageValid ||
                 !_apkInputValidation.VersionValid)
             {
-                AddLog($"错误：{_apkInputValidation.Status}。请修正右侧 APK 打包设置中高亮的字段。", true);
+                AddLog($"Error: {_apkInputValidation.Status}. Fix the highlighted fields in the APK build settings.", true);
                 MessageBox.Show(this,
-                    $"输入校验未通过：{_apkInputValidation.Status}\n\n"
-                    + "请查看每个输入框下方的红色提示文字进行修正。",
-                    "配置错误",
+                    $"Input validation failed: {_apkInputValidation.Status}\n\n"
+                    + "Check the red hint text below each input field.",
+                    "Invalid configuration",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;
@@ -556,8 +579,8 @@ namespace GameMaker_Mobiler
 
             var saveDialog = new SaveFileDialog
             {
-                Title = "选择 APK 保存位置",
-                Filter = "APK 文件 (*.apk)|*.apk",
+                Title = "Choose where to save the APK",
+                Filter = "APK file (*.apk)|*.apk",
                 FileName = $"{defaultFileName}.apk",
                 AddExtension = true,
                 DefaultExt = ".apk",
@@ -592,7 +615,7 @@ namespace GameMaker_Mobiler
             CancelButton.IsEnabled = true;
             BuildProgressBar.Value = 0;
             ProgressTextBlock.Text = "0%";
-            StatusTextBlock.Text = "移植中...";
+            StatusTextBlock.Text = "Porting...";
 
             _portingCts?.Dispose();
             _portingCts = new CancellationTokenSource();
@@ -620,25 +643,25 @@ namespace GameMaker_Mobiler
 
             try
             {
-                AddLog("===== 开始移植流程 =====");
+                AddLog("===== Porting started =====");
 
-                AddLog("步骤 1: 修改 data.win (内置 UTMT 脚本引擎)...");
+                AddLog("Step 1: patching data.win (built-in UTMT script engine)...");
                 modifiedDataWinPath = Path.Combine(
-                    Path.GetTempPath(),
-                    $"gmm_port_{Guid.NewGuid():N}.game.droid");
+                    SafeWorkspace.CreateDirectory("port"),
+                    "game.droid");
                 await _utmtService
                     .ModifyDataWinToPath(
                         _currentGameInfo.DataWinPath,
                         options,
                         modifiedDataWinPath,
                         _portingCts.Token);
-                AddLog("data.win 修改完成，已写入临时目录。");
+                AddLog("data.win patched and written to the working directory.");
 
-                AddLog("步骤 2: 选择 APK 模板...");
+                AddLog("Step 2: selecting the APK template...");
                 var templateApk = _apkBuilder.FindTemplateApk(_currentGameInfo.Version);
-                AddLog($"使用模板: {Path.GetFileName(templateApk)}");
+                AddLog($"Using template: {Path.GetFileName(templateApk)}");
 
-                AddLog("步骤 3-5: 构建 APK...");
+                AddLog("Steps 3-5: building the APK...");
                 bool embedMusic = EmbedMusicCheckBox.IsChecked == true;
                 await _apkBuilder.BuildApkAsync(
                     templateApk,
@@ -659,30 +682,30 @@ namespace GameMaker_Mobiler
 
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    StatusTextBlock.Text = "移植完成！";
+                    StatusTextBlock.Text = "Porting complete!";
                 });
 
-                AddLog("===== 移植成功！=====");
+                AddLog("===== Porting succeeded =====");
                 await Dispatcher.InvokeAsync(() =>
                     MessageBox.Show(this,
-                        $"移植成功！\n\nAPK 已保存到：\n{outputPath}",
-                        "移植完成",
+                        $"Porting succeeded.\n\nThe APK was saved to:\n{outputPath}",
+                        "Porting complete",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information));
             }
             catch (OperationCanceledException)
             {
-                AddLog("移植已取消。", true);
-                await Dispatcher.InvokeAsync(() => StatusTextBlock.Text = "已取消");
+                AddLog("Porting cancelled.", true);
+                await Dispatcher.InvokeAsync(() => StatusTextBlock.Text = "Cancelled");
             }
             catch (Exception ex)
             {
-                AddLog($"移植失败：{ex.Message}", true);
-                await Dispatcher.InvokeAsync(() => StatusTextBlock.Text = "移植失败");
+                AddLog($"Porting failed: {ex.Message}", true);
+                await Dispatcher.InvokeAsync(() => StatusTextBlock.Text = "Porting failed");
                 await Dispatcher.InvokeAsync(() =>
                     MessageBox.Show(this,
-                        $"移植失败：\n{ex.Message}",
-                        "错误",
+                        $"Porting failed:\n{ex.Message}",
+                        "Error",
                         MessageBoxButton.OK,
                         MessageBoxImage.Error));
             }
@@ -717,19 +740,19 @@ namespace GameMaker_Mobiler
             _selectedSplashPath = null;
             _lastOutputDir = null;
 
-            SourcePathTextBox.Text = "未选择目录";
-            DataWinPathTextBlock.Text = "data.win 路径：未检测";
-            GameVersionTextBlock.Text = "版本：未检测";
-            UteStatusTextBlock.Text = "UTE 模板状态：等待检测...";
+            SourcePathTextBox.Text = "No folder selected";
+            DataWinPathTextBlock.Text = "data.win path: not detected";
+            GameVersionTextBlock.Text = "Version: not detected";
+            UteStatusTextBlock.Text = "UTE template: waiting for detection...";
             UteStatusTextBlock.Foreground = (Brush)FindResource("TextMutedBrush");
             StartPortingButton.IsEnabled = false;
 
             AppNameTextBox.Text = "MyGame";
             PackageNameTextBox.Text = "com.example.mygame";
             VersionTextBox.Text = "1.0.0";
-            IconPathTextBox.Text = "未选择图标（使用默认）";
+            IconPathTextBox.Text = "No icon selected (default will be used)";
             IconPreviewTextBlock.Text = "";
-            SplashPathTextBox.Text = "未选择加载图片（使用默认）";
+            SplashPathTextBox.Text = "No splash image selected (default will be used)";
             SplashPreviewTextBlock.Text = "";
 
             AddMobileKeyCheckBox.IsChecked = false;
@@ -744,15 +767,15 @@ namespace GameMaker_Mobiler
 
             BuildProgressBar.Value = 0;
             ProgressTextBlock.Text = "0%";
-            StatusTextBlock.Text = "就绪";
+            StatusTextBlock.Text = "Ready";
 
-            Logs.Add("界面已重置。");
+            Logs.Add("Interface reset.");
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
         {
             _portingCts?.Cancel();
-            AddLog("正在取消移植...");
+            AddLog("Cancelling...");
         }
     }
 }

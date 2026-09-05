@@ -6,29 +6,29 @@ using System.Text;
 namespace GameMaker_Mobiler.Services;
 
 /// <summary>
-/// 触控层生成选项。
+/// Options for touch layer generation.
 /// </summary>
 public sealed class TouchLayerOptions
 {
-    /// <summary>是否根据分析结果绘制摇杆。</summary>
+    /// <summary>Whether to draw a joystick when the analysis asks for one.</summary>
     public bool EnableJoystick { get; init; } = true;
 
-    /// <summary>是否启用移动端性能优化补丁。</summary>
+    /// <summary>Whether to apply the mobile performance patch.</summary>
     public bool EnableOptimization { get; init; } = true;
 
-    /// <summary>目标是否为 GameMaker Studio 2（决定使用 gpu_* 还是 texture_*）。</summary>
+    /// <summary>True for GameMaker Studio 2 targets (selects gpu_* instead of texture_*).</summary>
     public bool IsGameMaker2 { get; init; } = true;
 }
 
 /// <summary>
-/// 生成一套完全自绘（不依赖任何精灵资源）的触控控制层 GML 代码：
-/// 摇杆 + 按键按钮 + EDIT 编辑模式（移动 / 缩放 / 显隐 / 关闭触控）。
+/// Generates a fully self-drawn touch control layer in GML (no sprite assets required):
+/// joystick + key buttons + EDIT mode (move / resize / show / hide / disable touch).
 /// <para>
-/// 设计约束（为了在 GMS 1.4 ~ GMS 2024.x 全系列都能编译通过）：
+/// Design constraints, so the code compiles on everything from GMS 1.4 to GMS 2024.x:
 /// <list type="bullet">
-/// <item>不创建任何脚本资源（2.3 前后脚本机制不同），全部代码内联在对象事件里；</item>
-/// <item>不使用结构体、函数字面量、数组访问器、?? 等 2.3+ 语法；</item>
-/// <item>不引用任何精灵/字体资源，全部使用 draw_circle / draw_text 等内置绘制函数。</item>
+/// <item>no script assets are created (the script mechanism differs before/after 2.3); everything is inlined into object events;</item>
+/// <item>no structs, function literals, array accessors or ?? operators from 2.3+;</item>
+/// <item>no sprite or font assets are referenced; only built-in drawing functions such as draw_circle / draw_text.</item>
 /// </list>
 /// </para>
 /// </summary>
@@ -36,7 +36,7 @@ public static class TouchLayerGenerator
 {
     public const string ObjectName = "obj_gmm_touch";
 
-    /// <summary>Create 事件。</summary>
+    /// <summary>Create event.</summary>
     public static string BuildCreate(KeyUsageReport report, TouchLayerOptions options)
     {
         ArgumentNullException.ThrowIfNull(report);
@@ -46,7 +46,7 @@ public static class TouchLayerGenerator
         var useJoystick = options.EnableJoystick && report.NeedsJoystick;
 
         var sb = new StringBuilder();
-        sb.AppendLine("/// GameMaker-Mobiler 触控层 (自动生成，请勿手改)");
+        sb.AppendLine("/// GameMaker-Mobiler touch layer (auto-generated, do not edit by hand)");
         sb.AppendLine("gmm_ready = 0;");
         sb.AppendLine("depth = -100000;");
         sb.AppendLine();
@@ -62,7 +62,7 @@ public static class TouchLayerGenerator
         sb.AppendLine("gmm_repeat = 0;");
         sb.AppendLine("gmm_do_save = 0;");
         sb.AppendLine();
-        sb.AppendLine("// 计时用的帧数（按当前房间帧率换算，room_speed 在新旧版本里都可读）");
+        sb.AppendLine("// Frame counters for timing (room_speed is readable on both old and new runtimes)");
         sb.AppendLine("gmm_hold_frames = 42;");
         sb.AppendLine("gmm_repeat_frames = 8;");
         sb.AppendLine();
@@ -83,7 +83,7 @@ public static class TouchLayerGenerator
         sb.AppendLine();
         sb.AppendLine($"gmm_count = {buttons.Count};");
 
-        // 默认布局：右下角每行 3 个，从右往左、从下往上排布。
+        // Default layout: bottom-right corner, three per row, right to left and bottom to top.
         for (var i = 0; i < buttons.Count; i++)
         {
             var button = buttons[i];
@@ -103,7 +103,7 @@ public static class TouchLayerGenerator
 
         if (buttons.Count == 0)
         {
-            // 数组必须存在：GMS1.4 下读取未初始化的数组会报错。
+            // The arrays must exist: reading an uninitialized array throws on GMS 1.4.
             sb.AppendLine("gmm_key[0] = 0;");
             sb.AppendLine("gmm_label[0] = \"\";");
             sb.AppendLine("gmm_fx[0] = 0;");
@@ -114,7 +114,7 @@ public static class TouchLayerGenerator
         }
 
         sb.AppendLine();
-        sb.AppendLine("// 读取玩家保存的布局");
+        sb.AppendLine("// Load the layout saved by the player");
         sb.AppendLine("ini_open(\"gmm_touch.ini\");");
         sb.AppendLine("global.gmm_touch_on = ini_read_real(\"GMM\", \"on\", global.gmm_touch_on);");
         sb.AppendLine("global.gmm_alpha = ini_read_real(\"GMM\", \"alpha\", global.gmm_alpha);");
@@ -132,7 +132,7 @@ public static class TouchLayerGenerator
         sb.AppendLine("}");
         sb.AppendLine("ini_close();");
         sb.AppendLine();
-        sb.AppendLine("// 数值兜底，防止 ini 被玩家改坏导致控件飞出屏幕");
+        sb.AppendLine("// Clamp everything, so a hand-edited ini cannot push controls off screen");
         sb.AppendLine("global.gmm_alpha = clamp(global.gmm_alpha, 0.1, 1);");
         sb.AppendLine("global.gmm_btn_scale = clamp(global.gmm_btn_scale, 0.5, 2.5);");
         sb.AppendLine("global.gmm_joy_scale = clamp(global.gmm_joy_scale, 0.5, 2.5);");
@@ -156,7 +156,7 @@ public static class TouchLayerGenerator
         return sb.ToString();
     }
 
-    /// <summary>Step 事件：触摸判定与按键注入。</summary>
+    /// <summary>Step event: touch hit-testing and key injection.</summary>
     public static string BuildStep()
     {
         var sb = new StringBuilder();
@@ -172,7 +172,7 @@ public static class TouchLayerGenerator
         sb.AppendLine("_jx = gmm_joy_fx * _gw;");
         sb.AppendLine("_jy = gmm_joy_fy * _gh;");
         sb.AppendLine();
-        sb.AppendLine("// 采集本帧的触点（最多 5 指）");
+        sb.AppendLine("// Collect this frame's touch points (up to 5 fingers)");
         sb.AppendLine("var _n, _dn, _px_arr, _py_arr, _new_arr;");
         sb.AppendLine("_n = 0;");
         sb.AppendLine("_px_arr[0] = 0;");
@@ -189,7 +189,7 @@ public static class TouchLayerGenerator
         sb.AppendLine("    }");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("// ---- 齿轮按钮：长按 0.7 秒进入 / 退出编辑模式 ----");
+        sb.AppendLine("// ---- Gear button: hold 0.7s to enter / leave EDIT mode ----");
         sb.AppendLine("var _gear_x, _gear_y, _gear_r, _gear_down;");
         sb.AppendLine("_gear_r = _unit * 0.045;");
         sb.AppendLine("_gear_x = _gw - (_gear_r * 1.4);");
@@ -216,7 +216,7 @@ public static class TouchLayerGenerator
         sb.AppendLine("    gmm_gear_hold = 0;");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("// ---- 统一的保存点（放在最前面：编辑逻辑里有 exit）----");
+        sb.AppendLine("// ---- Single save point (kept first: the edit logic can exit early) ----");
         sb.AppendLine("if (gmm_do_save == 1)");
         sb.AppendLine("{");
         sb.AppendLine("    gmm_do_save = 0;");
@@ -242,7 +242,7 @@ public static class TouchLayerGenerator
     private static string BuildPlayLogic()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("// ---- 普通按钮 ----");
+        sb.AppendLine("// ---- Regular buttons ----");
         sb.AppendLine("for (_i = 0; _i < gmm_count; _i += 1)");
         sb.AppendLine("{");
         sb.AppendLine("    _hit = 0;");
@@ -261,7 +261,7 @@ public static class TouchLayerGenerator
         sb.AppendLine("    gmm_state[_i] = _hit;");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("// ---- 摇杆 ----");
+        sb.AppendLine("// ---- Joystick ----");
         sb.AppendLine("if (gmm_joy_on == 1 && gmm_joy_show == 1)");
         sb.AppendLine("{");
         sb.AppendLine("    var _found, _ddx, _ddy, _len, _dir, _want;");
@@ -399,7 +399,7 @@ public static class TouchLayerGenerator
         sb.AppendLine("    exit;");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("// 选中 / 拖动控件");
+        sb.AppendLine("// Select / drag a control");
         sb.AppendLine("if (gmm_drag == -1 && _tnew == 1)");
         sb.AppendLine("{");
         sb.AppendLine("    for (_i = 0; _i < gmm_count; _i += 1)");
@@ -433,7 +433,7 @@ public static class TouchLayerGenerator
         return sb.ToString();
     }
 
-    /// <summary>Draw GUI 事件。</summary>
+    /// <summary>Draw GUI event.</summary>
     public static string BuildDrawGui()
     {
         var sb = new StringBuilder();
@@ -461,7 +461,7 @@ public static class TouchLayerGenerator
         sb.AppendLine("draw_set_halign(fa_center);");
         sb.AppendLine("draw_set_valign(fa_middle);");
         sb.AppendLine();
-        sb.AppendLine("// 齿轮按钮：长按 0.7 秒进入编辑模式");
+        sb.AppendLine("// Gear button: hold 0.7s to enter EDIT mode");
         sb.AppendLine("draw_set_alpha(0.35);");
         sb.AppendLine("draw_set_colour(c_black);");
         sb.AppendLine("draw_circle(_gear_x, _gear_y, _gear_r, false);");
@@ -483,7 +483,7 @@ public static class TouchLayerGenerator
         sb.AppendLine("_a = global.gmm_alpha;");
         sb.AppendLine("if (gmm_edit == 1) _a = max(_a, 0.75);");
         sb.AppendLine();
-        sb.AppendLine("// 摇杆");
+        sb.AppendLine("// Joystick");
         sb.AppendLine("if (gmm_joy_on == 1 && (gmm_joy_show == 1 || gmm_edit == 1))");
         sb.AppendLine("{");
         sb.AppendLine("    draw_set_alpha(_a * 0.45);");
@@ -503,7 +503,7 @@ public static class TouchLayerGenerator
         sb.AppendLine("    }");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("// 按钮");
+        sb.AppendLine("// Buttons");
         sb.AppendLine("for (_i = 0; _i < gmm_count; _i += 1)");
         sb.AppendLine("{");
         sb.AppendLine("    if (gmm_show[_i] == 1 || gmm_edit == 1)");
@@ -524,7 +524,7 @@ public static class TouchLayerGenerator
         sb.AppendLine("    }");
         sb.AppendLine("}");
         sb.AppendLine();
-        sb.AppendLine("// 编辑面板");
+        sb.AppendLine("// Edit panel");
         sb.AppendLine("if (gmm_edit == 1)");
         sb.AppendLine("{");
         sb.AppendLine(Indent(BuildEditPanelDraw(), 1));
@@ -574,7 +574,7 @@ public static class TouchLayerGenerator
         return sb.ToString();
     }
 
-    /// <summary>CleanUp 事件：确保对象销毁时不会残留被按住的按键。</summary>
+    /// <summary>CleanUp event: makes sure no key stays held down when the object is destroyed.</summary>
     public static string BuildCleanUp()
     {
         var sb = new StringBuilder();
@@ -586,7 +586,7 @@ public static class TouchLayerGenerator
         return sb.ToString();
     }
 
-    /// <summary>Room Start 事件：换房间后重新置顶，避免被游戏自己的 GUI 盖住。</summary>
+    /// <summary>Room Start event: re-applies the depth so the game GUI cannot cover the controls.</summary>
     public static string BuildRoomStart()
     {
         var sb = new StringBuilder();
@@ -646,7 +646,7 @@ public static class TouchLayerGenerator
     private static string BuildOptimizationSnippet(bool isGameMaker2)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("// ---- 移动端性能优化（无需 YYC）----");
+        sb.AppendLine("// ---- Mobile performance optimization (no YYC needed) ----");
         if (isGameMaker2)
         {
             sb.AppendLine("gpu_set_tex_filter(false);");

@@ -7,47 +7,47 @@ using UndertaleModLib.Models;
 namespace GameMaker_Mobiler.Services;
 
 /// <summary>
-/// 一个被游戏实际使用的键位。
+/// A keyboard key the game actually uses.
 /// </summary>
-/// <param name="Code">GameMaker 键值（与 ord()/vk_* 一致）。</param>
-/// <param name="Label">在触控按钮上显示的文字。</param>
-/// <param name="Usage">在字节码中被引用的次数（用于排序，越大越常用）。</param>
+/// <param name="Code">GameMaker key code (same values as ord() / vk_*).</param>
+/// <param name="Label">Text drawn on the touch button.</param>
+/// <param name="Usage">How many times it is referenced in the bytecode (used for ranking).</param>
 public sealed record DetectedKey(int Code, string Label, int Usage);
 
 /// <summary>
-/// 游戏键位使用情况分析结果。
+/// Result of the keyboard usage analysis.
 /// </summary>
 public sealed class KeyUsageReport
 {
-    /// <summary>方向键（上下左右）是否被使用。</summary>
+    /// <summary>Whether the arrow keys are used.</summary>
     public bool UsesArrowKeys { get; init; }
 
-    /// <summary>WASD 是否被使用。</summary>
+    /// <summary>Whether WASD is used.</summary>
     public bool UsesWasd { get; init; }
 
-    /// <summary>需要放在屏幕上的普通按钮（已按使用频率排序，且不含方向键）。</summary>
+    /// <summary>Regular on-screen buttons, ranked by usage and excluding movement keys.</summary>
     public IReadOnlyList<DetectedKey> Buttons { get; init; } = Array.Empty<DetectedKey>();
 
-    /// <summary>摇杆输出的键值：上、下、左、右。</summary>
+    /// <summary>Key codes emitted by the joystick: up, down, left, right.</summary>
     public int JoystickUp { get; init; } = 38;
     public int JoystickDown { get; init; } = 40;
     public int JoystickLeft { get; init; } = 37;
     public int JoystickRight { get; init; } = 39;
 
-    /// <summary>是否需要摇杆（游戏用了方向键或 WASD）。</summary>
+    /// <summary>Whether a joystick is needed (the game uses arrow keys or WASD).</summary>
     public bool NeedsJoystick => UsesArrowKeys || UsesWasd;
 
-    /// <summary>分析是否成功命中了任何键位（否则使用兜底方案）。</summary>
+    /// <summary>True when nothing was detected and the fallback layout should be used.</summary>
     public bool IsEmpty => Buttons.Count == 0 && !NeedsJoystick;
 }
 
 /// <summary>
-/// 扫描 data.win 的字节码，找出游戏真正使用的键盘按键，
-/// 以便只为这些按键绘制触控按钮（不同游戏用的键不一样）。
+/// Scans the data.win bytecode to find the keyboard keys the game really uses,
+/// so touch buttons are created only for them (every game uses a different set).
 /// </summary>
 public static class KeyUsageAnalyzer
 {
-    /// <summary>最多生成多少个普通触控按钮。</summary>
+    /// <summary>Maximum number of regular touch buttons to generate.</summary>
     public const int MaxButtons = 8;
 
     private static readonly HashSet<string> KeyboardFunctions = new(StringComparer.Ordinal)
@@ -60,7 +60,7 @@ public static class KeyUsageAnalyzer
         "keyboard_key_release"
     };
 
-    // 常见的、值得放到屏幕上的按键（其余的一律忽略，避免生成一屏幕垃圾按钮）。
+    // Common keys worth putting on screen; anything else is ignored to avoid button clutter.
     private static readonly Dictionary<int, string> KeyLabels = new()
     {
         [8] = "BSP",
@@ -97,7 +97,7 @@ public static class KeyUsageAnalyzer
     private const int VkDown = 40;
 
     /// <summary>
-    /// 分析 data.win 中所有代码，统计键盘按键的使用情况。
+    /// Analyzes every code entry in data.win and counts keyboard key usage.
     /// </summary>
     public static KeyUsageReport Analyze(UndertaleData data, Action<string, bool>? log = null)
     {
@@ -153,16 +153,16 @@ public static class KeyUsageAnalyzer
 
         if (log is not null)
         {
-            log($"键位分析：摇杆 = {(report.NeedsJoystick ? (report.UsesArrowKeys ? "方向键" : "WASD") : "未检测到")}，" +
-                $"按钮 = {(buttons.Count == 0 ? "无" : string.Join(", ", buttons.Select(b => $"{b.Label}({b.Usage})")))}", false);
+            log($"Key analysis: joystick = {(report.NeedsJoystick ? (report.UsesArrowKeys ? "arrow keys" : "WASD") : "not detected")}, " +
+                $"buttons = {(buttons.Count == 0 ? "none" : string.Join(", ", buttons.Select(b => $"{b.Label}({b.Usage})")))}", false);
         }
 
         return report;
     }
 
     /// <summary>
-    /// 当分析不到任何键位时（例如游戏使用了扩展或 YYC 之外的特殊输入方式），
-    /// 返回一套安全的默认布局，保证玩家至少能操作。
+    /// Used when nothing could be detected (for example the game reads input through an extension).
+    /// Returns a safe default layout so the player can always control the game.
     /// </summary>
     public static KeyUsageReport CreateFallback()
     {
@@ -183,7 +183,7 @@ public static class KeyUsageAnalyzer
 
     private static void CollectFromCode(UndertaleCode code, Dictionary<int, int> usage)
     {
-        // 记录最近一次压栈的字面量：数字或单字符字符串（对应 ord("X")）。
+        // Tracks the most recently pushed literal: a number or a single-character string (ord("X")).
         var hasLiteral = false;
         var literal = 0;
 
@@ -208,7 +208,7 @@ public static class KeyUsageAnalyzer
                     }
                     else if (TryGetSingleChar(instruction, out var ch))
                     {
-                        // ord("z") 未被常量折叠时，字符串会先入栈。
+                        // When ord("z") is not constant-folded the string is pushed first.
                         hasLiteral = true;
                         literal = char.ToUpperInvariant(ch);
                     }
@@ -219,7 +219,7 @@ public static class KeyUsageAnalyzer
                     break;
 
                 case UndertaleInstruction.Opcode.Conv:
-                    // 类型转换不会破坏字面量。
+                    // A conversion does not invalidate the literal.
                     break;
 
                 case UndertaleInstruction.Opcode.Call:
@@ -233,7 +233,7 @@ public static class KeyUsageAnalyzer
 
                     if (string.Equals(name, "ord", StringComparison.Ordinal))
                     {
-                        // ord 的结果就是刚才那个字符，保持 literal 不变。
+                        // ord returns the character just pushed, so keep the literal as is.
                         break;
                     }
 
@@ -302,7 +302,7 @@ public static class KeyUsageAnalyzer
     }
 
     /// <summary>
-    /// 取得按键在触控按钮上显示的名字；不支持/不适合上屏的键返回 false。
+    /// Gets the label shown on the touch button; returns false for keys that should not be drawn.
     /// </summary>
     public static bool TryGetLabel(int code, out string? label)
     {
@@ -322,12 +322,14 @@ public static class KeyUsageAnalyzer
 
         if (code is VkLeft or VkUp or VkRight or VkDown)
         {
+            // ASCII only: the built-in GameMaker font cannot render arrow glyphs,
+            // they would show up as empty boxes on the touch buttons.
             label = code switch
             {
-                VkLeft => "←",
-                VkUp => "↑",
-                VkRight => "→",
-                _ => "↓"
+                VkLeft => "L",
+                VkUp => "U",
+                VkRight => "R",
+                _ => "D"
             };
             return true;
         }

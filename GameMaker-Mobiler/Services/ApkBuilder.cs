@@ -32,7 +32,7 @@ public class ApkBuilder
         var templatesDir = RuntimePaths.TemplatesDirectory;
 
         if (!Directory.Exists(templatesDir))
-            throw new DirectoryNotFoundException($"APK 模板目录不存在: {templatesDir}");
+            throw new DirectoryNotFoundException($"APK template folder does not exist: {templatesDir}");
 
         var allTemplates = Directory.GetFiles(templatesDir, "*.apk")
             .Select(f => new
@@ -44,9 +44,9 @@ public class ApkBuilder
             .ToList();
 
         if (allTemplates.Count == 0)
-            throw new InvalidOperationException("未找到任何 APK 模板文件");
+            throw new InvalidOperationException("No APK template files were found");
 
-        // 1. 精确匹配 (Major + Minor 完全一致)，取 Revision 最高的
+        // 1. Exact match (same Major + Minor), pick the highest Revision
         var exactMatch = allTemplates
             .Where(t => t.VersionKey.Major == (int)version.Major && t.VersionKey.Minor == (int)version.Minor)
             .OrderByDescending(t => t.VersionKey.Revision)
@@ -54,7 +54,7 @@ public class ApkBuilder
 
         if (exactMatch != null)
         {
-            Log($"找到精确匹配模板: {exactMatch.Name}");
+            Log($"Exact template match found: {exactMatch.Name}");
             return exactMatch.Path;
         }
 
@@ -66,7 +66,7 @@ public class ApkBuilder
 
         if (sameMajor.Count > 0)
         {
-            // 2. 同 Major，优先选 >= 游戏版本的最低模板（向上兼容：用更高版本 runtime 兼容旧 data）
+            // 2. Same Major: prefer the lowest template >= the game version (newer runtime, older data)
             var forwardFit = sameMajor
                 .FirstOrDefault(t =>
                     t.VersionKey.Minor > (int)version.Minor ||
@@ -74,26 +74,26 @@ public class ApkBuilder
 
             if (forwardFit != null)
             {
-                Log($"未找到 v{version.DisplayVersion} 精确模板，使用向上兼容模板: {forwardFit.Name}");
+                Log($"No exact template for v{version.DisplayVersion}; using a newer compatible template: {forwardFit.Name}");
                 return forwardFit.Path;
             }
 
-            // 3. 同 Major，所有模板都 < 游戏版本，取最高的模板（向下兼容）
+            // 3. Same Major but every template is older: use the highest one
             var backwardFit = sameMajor
                 .OrderByDescending(t => t.VersionKey.Minor)
                 .ThenByDescending(t => t.VersionKey.Revision)
                 .First();
-            Log($"未找到 v{version.DisplayVersion} 更高版本模板，使用同系列最高模板: {backwardFit.Name}");
+            Log($"No newer template for v{version.DisplayVersion}; using the highest template of the same series: {backwardFit.Name}");
             return backwardFit.Path;
         }
 
-        // 4. 没有同 Major 的模板，使用全局最新模板
+        // 4. No template with the same Major: fall back to the newest one overall
         var latest = allTemplates
             .OrderByDescending(t => t.VersionKey.Major)
             .ThenByDescending(t => t.VersionKey.Minor)
             .ThenByDescending(t => t.VersionKey.Revision)
             .First();
-        Log($"未找到 v{version.DisplayVersion} 同系列模板，使用全局最新模板: {latest.Name}");
+        Log($"No same-series template for v{version.DisplayVersion}; using the newest template available: {latest.Name}");
         return latest.Path;
     }
 
@@ -133,15 +133,15 @@ public class ApkBuilder
     {
         var safeAppName = SanitizeFileName(appName);
 
-        Log("开始构建 APK...");
+        Log("Starting the APK build...");
 
-        progress.Report((5, "准备工作目录..."));
+        progress.Report((5, "Preparing the working directory..."));
         using var tempDir = new TempDirectory();
 
-        progress.Report((10, "复制模板 APK..."));
+        progress.Report((10, "Copying the template APK..."));
         var unsignedApk = Path.Combine(tempDir.Path, $"{safeAppName}_unsigned.apk");
 
-        progress.Report((20, "使用 Apktool 解包并注入资源..."));
+        progress.Report((20, "Unpacking with Apktool and injecting resources..."));
         await BuildWithApktoolAsync(
             templateApkPath,
             gameDir,
@@ -156,30 +156,30 @@ public class ApkBuilder
 
         if (!string.IsNullOrEmpty(iconPath) && File.Exists(iconPath))
         {
-            progress.Report((50, "替换应用图标..."));
+            progress.Report((50, "Replacing the app icon..."));
             ReplaceApkIcon(unsignedApk, iconPath);
         }
 
         if (!string.IsNullOrEmpty(splashPath) && File.Exists(splashPath))
         {
-            progress.Report((55, "替换加载图片..."));
+            progress.Report((55, "Replacing the splash image..."));
             ReplaceApkSplashScreen(unsignedApk, splashPath);
         }
 
-        progress.Report((60, "APK 对齐优化..."));
+        progress.Report((60, "Aligning the APK..."));
         await ZipAlignApkAsync(unsignedApk, cancellationToken);
 
-        progress.Report((70, "签名 APK..."));
+        progress.Report((70, "Signing the APK..."));
         await SignApkAsync(unsignedApk, cancellationToken);
 
-        progress.Report((90, "保存最终 APK..."));
+        progress.Report((90, "Saving the final APK..."));
         var outputDir = Path.GetDirectoryName(outputPath);
         if (!string.IsNullOrEmpty(outputDir))
             Directory.CreateDirectory(outputDir);
         File.Copy(unsignedApk, outputPath, overwrite: true);
 
-        progress.Report((100, $"完成！APK 已保存到 {outputPath}"));
-        Log($"APK 构建完成: {outputPath}");
+        progress.Report((100, $"Done. The APK was saved to {outputPath}"));
+        Log($"APK build finished: {outputPath}");
     }
 
     private async Task BuildWithApktoolAsync(
@@ -200,12 +200,12 @@ public class ApkBuilder
 
         if (!File.Exists(apktoolJar))
         {
-            throw new FileNotFoundException("未找到 Apktool。", apktoolJar);
+            throw new FileNotFoundException("Apktool was not found.", apktoolJar);
         }
 
         if (!File.Exists(javaExe))
         {
-            throw new FileNotFoundException("未找到项目自带 JRE。", javaExe);
+            throw new FileNotFoundException("The bundled JRE was not found.", javaExe);
         }
 
         var workingApk = Path.Combine(Path.GetDirectoryName(outputApkPath)!, "apktool-input.apk");
@@ -213,7 +213,7 @@ public class ApkBuilder
 
         CreateApktoolInputApk(templateApkPath, workingApk);
 
-        Log($"Apktool 解包: {Path.GetFileName(workingApk)}");
+        Log($"Apktool decode: {Path.GetFileName(workingApk)}");
         await RunJavaToolAsync(
             javaExe,
             apktoolJar,
@@ -243,13 +243,13 @@ public class ApkBuilder
             RemoveGmuConsoleDll(assetsDirectory);
         }
 
-        Log("Apktool 回编译 APK...");
+        Log("Apktool is rebuilding the APK...");
         await RunJavaToolAsync(
             javaExe,
             apktoolJar,
             new[] { "b", "-f", "--no-crunch", "-o", outputApkPath, decodedDirectory },
             cancellationToken);
-        Log("Apktool 构建完成。");
+        Log("Apktool build finished.");
     }
 
     private static void CreateApktoolInputApk(string sourceApkPath, string destinationApkPath)
@@ -265,8 +265,8 @@ public class ApkBuilder
                 continue;
             }
 
-            // 保留原始条目的压缩方式，特别确保 .so 文件和 resources.arsc 不压缩
-            // 否则模板中原先未压缩的 .so 会被重新压缩，导致安装失败
+            // Preserve the original compression method, keeping .so files and resources.arsc stored
+            // otherwise previously uncompressed .so entries get compressed and installation fails
             var compression = entry.CompressedLength == entry.Length
                 ? CompressionLevel.NoCompression
                 : GetApkCompressionLevel(entry.FullName);
@@ -475,7 +475,7 @@ public class ApkBuilder
 
         if (packages.Count == 0)
         {
-            throw new InvalidDataException("无法从模板 AndroidManifest.xml 读取原包名。");
+            throw new InvalidDataException("Could not read the original package name from the template AndroidManifest.xml.");
         }
 
         return packages;
@@ -505,7 +505,7 @@ public class ApkBuilder
         }
 
         var commandLine = BuildDisplayCommand(javaExe, jarPath, arguments);
-        Log($"启动外部工具: {commandLine}");
+        Log($"Launching external tool: {commandLine}");
 
         using var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
         var exitTcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -550,7 +550,7 @@ public class ApkBuilder
 
         if (!process.Start())
         {
-            throw new InvalidOperationException($"无法启动 Java 工具: {jarPath}");
+            throw new InvalidOperationException($"Could not start the Java tool: {jarPath}");
         }
 
         process.BeginOutputReadLine();
@@ -562,13 +562,13 @@ public class ApkBuilder
             {
                 if (!process.HasExited)
                 {
-                    Log("收到取消请求，正在终止外部工具...", true);
+                    Log("Cancellation requested, terminating the external tool...", true);
                     process.Kill(entireProcessTree: true);
                 }
             }
             catch (Exception ex)
             {
-                Log($"终止外部工具失败: {ex.Message}", true);
+                Log($"Failed to terminate the external tool: {ex.Message}", true);
             }
         });
 
@@ -588,10 +588,10 @@ public class ApkBuilder
         if (exitCode != 0)
         {
             throw new InvalidOperationException(
-                $"Java 工具执行失败 ({exitCode}): {commandLine}\n{stdout}\n{stderr}");
+                $"The Java tool failed ({exitCode}): {commandLine}\n{stdout}\n{stderr}");
         }
 
-        Log($"外部工具完成，退出码: {exitCode}");
+        Log($"External tool finished with exit code {exitCode}");
     }
 
     private static string BuildDisplayCommand(
@@ -619,28 +619,27 @@ public class ApkBuilder
         bool embedMusicInDataWin,
         CancellationToken cancellationToken)
     {
-        var tempExtractDir = Path.Combine(Path.GetTempPath(), $"gm_mobiler_{Guid.NewGuid():N}");
+        var tempExtractDir = SafeWorkspace.CreateDirectory("inject");
         try
         {
-            Directory.CreateDirectory(tempExtractDir);
             ExtractArchiveAllowingDuplicateEntries(apkPath, tempExtractDir);
 
             var assetsDir = Path.Combine(tempExtractDir, "assets");
             if (!Directory.Exists(assetsDir))
-                throw new InvalidOperationException("APK 模板中未找到 assets 目录");
+                throw new InvalidOperationException("The APK template does not contain an assets folder");
 
             var gameDroidPath = Path.Combine(gameDir, "game.droid");
             if (File.Exists(gameDroidPath))
             {
                 var gameDroidTarget = Path.Combine(assetsDir, "game.droid");
                 File.Copy(gameDroidPath, gameDroidTarget, overwrite: true);
-                Log("game.droid 已注入 APK");
+                Log("game.droid injected into the APK");
             }
             else
             {
                 var dataWinTarget = Path.Combine(assetsDir, "game.droid");
                 File.Copy(dataWinPath, dataWinTarget, overwrite: true);
-                Log("data.win 已改名为 game.droid 并注入 APK");
+                Log("data.win renamed to game.droid and injected into the APK");
             }
 
             CopyGameResources(gameDir, assetsDir, isUteTemplate, embedMusicInDataWin);
@@ -656,7 +655,7 @@ public class ApkBuilder
 
             File.Delete(apkPath);
             CreateApkArchive(tempExtractDir, apkPath);
-            Log("资源注入完成，APK 已重新打包");
+            Log("Resource injection finished, the APK was repacked");
         }
         finally
         {
@@ -678,7 +677,7 @@ public class ApkBuilder
 
             if (!destinationPath.StartsWith(destinationRoot, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException($"APK 模板包含非法路径: {entry.FullName}");
+                throw new InvalidOperationException($"The APK template contains an invalid path: {entry.FullName}");
             }
 
             if (string.IsNullOrEmpty(entry.Name))
@@ -699,7 +698,7 @@ public class ApkBuilder
 
         if (duplicateCount > 0)
         {
-            Log($"APK 模板包含 {duplicateCount} 个重复资源条目，已使用后出现的条目覆盖。");
+            Log($"The APK template contains {duplicateCount} duplicate entries; later entries were kept.");
         }
     }
 
@@ -715,12 +714,12 @@ public class ApkBuilder
         {
             var fileName = Path.GetFileName(file);
             if (skipFiles.Contains(fileName) || IsExcludedGameResource(file)) continue;
-            // 已勾选「把音乐内置进 data.win」时，源目录里的音频文件不再拷贝进 APK，避免重复打包
+            // When music is embedded into data.win, audio files are not copied again into the APK
             if (embedMusicInDataWin && IsEmbeddedAudioResource(file)) continue;
 
             var targetPath = Path.Combine(assetsDir, fileName);
             File.Copy(file, targetPath, overwrite: true);
-            Log($"注入: {fileName}");
+            Log($"Injected: {fileName}");
         }
 
         var dirsToCopy = new[] { "locale", "bin", "data", "assets" };
@@ -734,7 +733,7 @@ public class ApkBuilder
                 Directory.Delete(targetDir, recursive: true);
 
             CopyDirectory(sourceDir, targetDir, embedMusicInDataWin);
-            Log($"注入目录: {dirName}/");
+            Log($"Injected folder: {dirName}/");
         }
     }
 
@@ -756,8 +755,8 @@ public class ApkBuilder
 
     private static CompressionLevel GetApkCompressionLevel(string entryName)
     {
-        // Android 要求 resources.arsc 和所有 .so 原生库必须不压缩（Stored）存储
-        // .so 文件必须不压缩，这样系统才能直接 mmap，否则会导致 INSTALL_FAILED_INVALID_APK
+        // Android requires resources.arsc and every native .so library to be stored uncompressed
+        // so the system can mmap them directly; otherwise installation fails with INSTALL_FAILED_INVALID_APK
         if (string.Equals(entryName, "resources.arsc", StringComparison.OrdinalIgnoreCase) ||
             entryName.EndsWith(".so", StringComparison.OrdinalIgnoreCase))
         {
@@ -775,7 +774,7 @@ public class ApkBuilder
         foreach (var file in Directory.GetFiles(sourceDir))
         {
             if (IsExcludedGameResource(file)) continue;
-            // 已勾选内置音乐时，子目录下的音频文件同样跳过，避免 assets/data 等子路径里还留一份
+            // With embedded music, audio inside subfolders is skipped too, so no copy remains under assets/data
             if (embedMusicInDataWin && IsEmbeddedAudioResource(file)) continue;
 
             var targetFile = Path.Combine(targetDir, Path.GetFileName(file));
@@ -811,8 +810,8 @@ public class ApkBuilder
     }
 
     /// <summary>
-    /// 判定文件是否属于「音乐内置进 data.win」时可跳过的音频资源。
-    /// 对应「导入所有音乐.csx」接受的 .ogg/.wav 两类，另外补充常见的 .mp3 避免遗漏。
+    /// Determines whether a file is an audio resource that can be skipped when music is embedded into data.win.
+    /// Matches the .ogg/.wav types accepted by the import-all-music script, plus .mp3 for completeness.
     /// </summary>
     private static bool IsEmbeddedAudioResource(string filePath)
     {
@@ -828,7 +827,7 @@ public class ApkBuilder
         var localeDir = Path.Combine(assetsDir, "locale");
         if (!Directory.Exists(localeDir))
         {
-            Log("locale 目录不存在，跳过前缀清理");
+            Log("No locale folder found, skipping prefix cleanup");
             return;
         }
 
@@ -867,7 +866,7 @@ public class ApkBuilder
             }
         }
 
-        Log($"locale 前缀清理完成，共修改 {changedFiles} 个文件");
+        Log($"Locale prefix cleanup finished, {changedFiles} file(s) modified");
     }
 
     private void RemoveGmuConsoleDll(string assetsDir)
@@ -876,7 +875,7 @@ public class ApkBuilder
         if (File.Exists(gmuPath))
         {
             File.Delete(gmuPath);
-            Log("已移除 gmu_console.dll（UTE 模板处理）");
+            Log("Removed gmu_console.dll (UTE template handling)");
         }
     }
 
@@ -898,7 +897,7 @@ public class ApkBuilder
         using (var output = ZipFile.Open(tempFile, ZipArchiveMode.Create))
         {
             var manifestEntry = zip.GetEntry("AndroidManifest.xml")
-                ?? throw new InvalidDataException("APK 中未找到 AndroidManifest.xml。");
+                ?? throw new InvalidDataException("AndroidManifest.xml was not found in the APK.");
             using var manifestStream = manifestEntry.Open();
             using var manifestBuffer = new MemoryStream();
             manifestStream.CopyTo(manifestBuffer);
@@ -906,7 +905,7 @@ public class ApkBuilder
 
             if (string.IsNullOrWhiteSpace(originalPackageName))
             {
-                throw new InvalidDataException("无法从 AndroidManifest.xml 读取模板包名。");
+                throw new InvalidDataException("Could not read the template package name from AndroidManifest.xml.");
             }
 
             var effectivePackageName = packageName;
@@ -970,7 +969,7 @@ public class ApkBuilder
                 }
             }
 
-            Log($"Manifest 已更新: 包名={effectivePackageName}, 版本={version}, 名称={appName}");
+            Log($"Manifest updated: package={effectivePackageName}, version={version}, name={appName}");
         }
 
         File.Delete(apkPath);
@@ -999,12 +998,12 @@ public class ApkBuilder
         if (resourcesData.Length < ResourceTableHeaderSize ||
             ReadUInt16(resourcesData, 0) != ResourceTableType)
         {
-            throw new InvalidDataException("resources.arsc 的资源表头无效。");
+            throw new InvalidDataException("The resources.arsc table header is invalid.");
         }
 
         if (packageName.Length >= PackageNameCharCount)
         {
-            throw new InvalidDataException("包名过长，无法写入 resources.arsc。");
+            throw new InvalidDataException("The package name is too long to be written into resources.arsc.");
         }
 
         var result = (byte[])resourcesData.Clone();
@@ -1012,7 +1011,7 @@ public class ApkBuilder
 
         if (chunkOffset + 8 > result.Length)
         {
-            throw new InvalidDataException("resources.arsc 的资源表内容无效。");
+            throw new InvalidDataException("The resources.arsc table content is invalid.");
         }
 
         var globalStringPoolSize = checked((int)ReadUInt32(result, chunkOffset + 4));
@@ -1024,7 +1023,7 @@ public class ApkBuilder
             var chunkSize = checked((int)ReadUInt32(result, chunkOffset + 4));
             if (chunkSize < 8 || chunkSize > result.Length - chunkOffset)
             {
-                throw new InvalidDataException("resources.arsc 中存在无效的 chunk。");
+                throw new InvalidDataException("resources.arsc contains an invalid chunk.");
             }
 
             if (ReadUInt16(result, chunkOffset) == PackageType &&
@@ -1188,7 +1187,7 @@ public class ApkBuilder
             stringIdsOffset > dexData.Length ||
             stringIdsSize > (dexData.Length - stringIdsOffset) / 4)
         {
-            throw new InvalidDataException("DEX 字符串表无效。");
+            throw new InvalidDataException("The DEX string table is invalid.");
         }
 
         var oldPackageBytes = Encoding.ASCII.GetBytes(originalPackageName);
@@ -1205,7 +1204,7 @@ public class ApkBuilder
             var originalStringOffset = checked((int)ReadUInt32(dexData, stringIdOffset));
             if (originalStringOffset < DexHeaderSize || originalStringOffset >= dexData.Length)
             {
-                throw new InvalidDataException("DEX 字符串项偏移无效。");
+                throw new InvalidDataException("A DEX string item offset is invalid.");
             }
 
             var cursor = originalStringOffset;
@@ -1218,7 +1217,7 @@ public class ApkBuilder
 
             if (cursor >= dexData.Length)
             {
-                throw new InvalidDataException("DEX 字符串项未找到结束标记。");
+                throw new InvalidDataException("A DEX string item has no terminator.");
             }
 
             var originalStringData = dexData[stringDataStart..cursor];
@@ -1254,7 +1253,7 @@ public class ApkBuilder
         if (originalMapOffset < DexHeaderSize ||
             originalMapOffset > dexData.Length - 4)
         {
-            throw new InvalidDataException("DEX map_list 偏移无效。");
+            throw new InvalidDataException("The DEX map_list offset is invalid.");
         }
 
         var orderedStringItems = stringItems
@@ -1300,7 +1299,7 @@ public class ApkBuilder
             stringDataOffset >= originalMapOffset ||
             stringDataEnd <= stringDataOffset)
         {
-            throw new InvalidDataException("DEX 字符串数据区无效。");
+            throw new InvalidDataException("The DEX string data section is invalid.");
         }
 
         var originalStringDataLength = stringDataEnd - stringDataOffset;
@@ -1480,7 +1479,7 @@ public class ApkBuilder
             shift += 7;
         }
 
-        throw new InvalidDataException("DEX ULEB128 值无效。");
+        throw new InvalidDataException("An invalid DEX ULEB128 value was found.");
     }
 
     private static void WriteUleb128(Stream stream, uint value)
@@ -1536,13 +1535,13 @@ public class ApkBuilder
         var rootHeaderSize = ReadUInt16(manifestData, 2);
         if (rootHeaderSize < 8 || rootHeaderSize > manifestData.Length - 8)
         {
-            throw new InvalidDataException("AndroidManifest.xml 的 XML 头无效。");
+            throw new InvalidDataException("The AndroidManifest.xml header is invalid.");
         }
 
         var stringPoolOffset = rootHeaderSize;
         if (ReadUInt16(manifestData, stringPoolOffset) != StringPoolChunkType)
         {
-            throw new InvalidDataException("AndroidManifest.xml 中未找到字符串池。");
+            throw new InvalidDataException("No string pool was found in AndroidManifest.xml.");
         }
 
         var stringPool = AndroidStringPool.Parse(manifestData, stringPoolOffset);
@@ -1560,7 +1559,7 @@ public class ApkBuilder
             if (chunkSize < chunkHeaderSize ||
                 chunkSize > manifestData.Length - chunkOffset)
             {
-                throw new InvalidDataException("AndroidManifest.xml 中存在无效的 XML chunk。");
+                throw new InvalidDataException("AndroidManifest.xml contains an invalid XML chunk.");
             }
 
             if (chunkType == StartElementChunkType && chunkHeaderSize >= 16)
@@ -1763,7 +1762,7 @@ public class ApkBuilder
                 stringsStart < headerSize ||
                 offset + stringsStart > offset + chunkSize)
             {
-                throw new InvalidDataException("AndroidManifest.xml 的字符串池无效。");
+                throw new InvalidDataException("The AndroidManifest.xml string pool is invalid.");
             }
 
             var stringOffsetsStart = offset + headerSize;
@@ -1790,7 +1789,7 @@ public class ApkBuilder
                 var styleDataStart = offset + checked((int)stylesStart);
                 if (styleDataStart < offset || styleDataStart > offset + chunkSize)
                 {
-                    throw new InvalidDataException("AndroidManifest.xml 的样式数据无效。");
+                    throw new InvalidDataException("The AndroidManifest.xml style data is invalid.");
                 }
 
                 styleData = data[styleDataStart..(offset + chunkSize)];
@@ -1886,7 +1885,7 @@ public class ApkBuilder
                 var byteLength = ReadUtf8Length(data, ref cursor);
                 if (cursor + byteLength > data.Length)
                 {
-                    throw new InvalidDataException("AndroidManifest.xml 的 UTF-8 字符串无效。");
+                    throw new InvalidDataException("An invalid UTF-8 string was found in AndroidManifest.xml.");
                 }
 
                 return Encoding.UTF8.GetString(data, cursor, byteLength);
@@ -1897,7 +1896,7 @@ public class ApkBuilder
             var byteLengthUtf16 = checked(characterLength * 2);
             if (utf16Cursor + byteLengthUtf16 > data.Length)
             {
-                throw new InvalidDataException("AndroidManifest.xml 的 UTF-16 字符串无效。");
+                throw new InvalidDataException("An invalid UTF-16 string was found in AndroidManifest.xml.");
             }
 
             return Encoding.Unicode.GetString(data, utf16Cursor, byteLengthUtf16);
@@ -2007,7 +2006,7 @@ public class ApkBuilder
 
     private void ReplaceApkIcon(string apkPath, string iconPath)
     {
-        Log($"替换图标: {iconPath}");
+        Log($"Replacing icon: {iconPath}");
         var entriesToSkip = new HashSet<string>(StringComparer.Ordinal)
         {
             "META-INF/",
@@ -2048,12 +2047,12 @@ public class ApkBuilder
 
         File.Delete(apkPath);
         File.Move(tempFile, apkPath);
-        Log("图标替换完成");
+        Log("Icon replaced");
     }
 
     private void ReplaceApkSplashScreen(string apkPath, string splashPath)
     {
-        Log($"替换加载图片: {splashPath}");
+        Log($"Replacing splash image: {splashPath}");
         var entriesToSkip = new HashSet<string>(StringComparer.Ordinal)
         {
             "META-INF/"
@@ -2096,13 +2095,13 @@ public class ApkBuilder
         if (!replaced)
         {
             File.Delete(tempFile);
-            Log("APK 中未找到 ic_cdv_splashscreen.png，跳过加载图片替换", true);
+            Log("ic_cdv_splashscreen.png was not found in the APK, skipping the splash replacement", true);
             return;
         }
 
         File.Delete(apkPath);
         File.Move(tempFile, apkPath);
-        Log("加载图片替换完成");
+        Log("Splash image replaced");
     }
 
     private async Task ZipAlignApkAsync(string apkPath, CancellationToken cancellationToken)
@@ -2111,7 +2110,7 @@ public class ApkBuilder
 
         if (!File.Exists(zipalignExe))
         {
-            Log("zipalign 未找到，跳过对齐步骤");
+            Log("zipalign was not found, skipping the alignment step");
             return;
         }
 
@@ -2119,9 +2118,9 @@ public class ApkBuilder
         var psi = new ProcessStartInfo
         {
             FileName = zipalignExe,
-            // -p: 将未压缩的 .so 文件对齐到 4096 字节页面边界（Android mmap 要求）
-            // -f: 强制覆盖输出
-            // 4: 常规资源 4 字节对齐
+            // -p: align uncompressed .so files to 4096-byte page boundaries (required for Android mmap)
+            // -f: overwrite the output
+            // 4: 4-byte alignment for regular resources
             Arguments = $"-f -p 4 \"{apkPath}\" \"{tempFile}\"",
             CreateNoWindow = true,
             UseShellExecute = false,
@@ -2132,7 +2131,7 @@ public class ApkBuilder
         };
 
         using var process = Process.Start(psi);
-        if (process == null) throw new InvalidOperationException("无法启动 zipalign");
+        if (process == null) throw new InvalidOperationException("Could not start zipalign");
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
         var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
@@ -2158,7 +2157,7 @@ public class ApkBuilder
 
         if (process.ExitCode != 0)
         {
-            Log($"zipalign 警告: {stderr}", isError: true);
+            Log($"zipalign warning: {stderr}", isError: true);
             if (File.Exists(tempFile))
             {
                 File.Delete(apkPath);
@@ -2169,7 +2168,7 @@ public class ApkBuilder
         {
             File.Delete(apkPath);
             File.Move(tempFile, apkPath);
-            Log("APK 对齐完成");
+            Log("APK alignment finished");
         }
     }
 
@@ -2183,21 +2182,21 @@ public class ApkBuilder
 
         if (!File.Exists(javaExe))
         {
-            Log($"JRE 未找到或无法准备: {javaExe}，跳过签名", true);
+            Log($"The JRE is missing or could not be prepared: {javaExe}; skipping signing", true);
             return;
         }
         if (!File.Exists(apksignerJar))
         {
-            Log($"apksigner 未找到: {apksignerJar}，跳过签名", true);
+            Log($"apksigner was not found: {apksignerJar}; skipping signing", true);
             return;
         }
         if (!File.Exists(keystorePath))
         {
-            Log($"签名证书未找到: {keystorePath}，跳过签名", true);
+            Log($"The signing keystore was not found: {keystorePath}; skipping signing", true);
             return;
         }
 
-        Log("开始签名 APK...");
+        Log("Signing the APK...");
 
         var signedApkPath = apkPath + ".signed";
         var psi = new ProcessStartInfo
@@ -2230,7 +2229,7 @@ public class ApkBuilder
         };
 
         using var process = Process.Start(psi);
-        if (process == null) throw new InvalidOperationException("无法启动 apksigner");
+        if (process == null) throw new InvalidOperationException("Could not start apksigner");
 
         await process.WaitForExitAsync(cancellationToken);
 
@@ -2241,7 +2240,7 @@ public class ApkBuilder
         {
             File.Delete(apkPath);
             File.Move(signedApkPath, apkPath);
-            Log("APK 签名成功");
+            Log("APK signed successfully");
         }
         else
         {
@@ -2250,8 +2249,8 @@ public class ApkBuilder
                 File.Delete(signedApkPath);
             }
 
-            Log($"APK 签名失败: {stderr}", true);
-            throw new InvalidOperationException($"APK 签名失败: {stderr}");
+            Log($"APK signing failed: {stderr}", true);
+            throw new InvalidOperationException($"APK signing failed: {stderr}");
         }
     }
 
@@ -2264,7 +2263,9 @@ public class ApkBuilder
             return sourceJava;
         }
 
-        var cacheRoot = Path.Combine(Path.GetTempPath(), "GameMaker-Mobiler", "jre");
+        // The JRE must also live under an ASCII-only path, otherwise java.exe cannot start
+        // when the Windows user name contains non-ASCII characters.
+        var cacheRoot = SafeWorkspace.Combine("jre");
         var cacheJre = Path.Combine(cacheRoot, "runtime");
         var cacheJava = Path.Combine(cacheJre, "bin", "java.exe");
         var markerPath = Path.Combine(cacheRoot, "source.marker");
@@ -2292,7 +2293,7 @@ public class ApkBuilder
         }
         catch (Exception ex)
         {
-            Log($"便携 JRE 准备失败，将尝试直接使用 Tools\\jre: {ex.Message}", true);
+            Log($"Could not prepare the portable JRE, falling back to Tools\\jre directly: {ex.Message}", true);
             return sourceJava;
         }
     }
@@ -2326,7 +2327,10 @@ public class ApkBuilder
     {
         var invalidChars = Path.GetInvalidFileNameChars();
         var safe = new string(invalidChars.Aggregate(name, (c, ch) => c.Replace(ch, '_')));
-        return string.IsNullOrWhiteSpace(safe) ? "MyGame" : safe.Trim();
+
+        // Also strip non-ASCII characters: the resulting name becomes part of a path that is
+        // handed to apktool / zipalign / apksigner, and those tools fail on Cyrillic paths.
+        return SafeWorkspace.ToAscii(safe, "MyGame");
     }
 }
 
@@ -2336,8 +2340,8 @@ public sealed class TempDirectory : IDisposable
 
     public TempDirectory()
     {
-        Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"gm_mobiler_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(Path);
+        // Must be ASCII-only: apktool fails on paths containing Cyrillic (or any non-ASCII) characters.
+        Path = SafeWorkspace.CreateDirectory("build");
     }
 
     public void Dispose()

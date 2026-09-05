@@ -57,7 +57,7 @@
                         <TextBlock Text="  ·  "
                                    FontSize="11"
                                    Foreground="{DynamicResource TextMutedBrush}"/>
-                        <TextBlock Text="GameMaker 游戏移植工具"
+                        <TextBlock Text="GameMaker Game Porting Tool"
                                    FontSize="12"
                                    Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </StackPanel>
@@ -78,14 +78,14 @@
                                      Fill="{DynamicResource SuccessBrush}"
                                      VerticalAlignment="Center"
                                      Margin="0,0,7,0"/>
-                            <TextBlock Text="工具链就绪"
+                            <TextBlock Text="Toolchain ready"
                                        FontSize="12"
                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </StackPanel>
                     </Border>
                     <Button x:Name="ThemeToggleButton"
                             Style="{StaticResource ToolbarButtonStyle}"
-                            Content="切换深色"
+                            Content="Dark mode"
                             Click="ThemeToggleButton_Click"/>
                 </StackPanel>
             </Grid>
@@ -102,8 +102,8 @@
             <!-- Left column: Game source -->
             <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}">
                 <StackPanel>
-                    <TextBlock Text="游戏源文件" Style="{StaticResource SectionTitleStyle}"/>
-                    <TextBlock Text="支持拖拽目录或 data.win 文件，当前仅校验 data.win。"
+                    <TextBlock Text="Game Source" Style="{StaticResource SectionTitleStyle}"/>
+                    <TextBlock Text="Drag and drop a folder or a data.win file. Only data.win is validated."
                                Margin="0,10,0,0" Style="{StaticResource CaptionStyle}"/>
 
                     <Border x:Name="SourceDropBorder"
@@ -134,35 +134,35 @@
                                      Grid.Column="0"
                                      Margin="0,0,12,0"
                                      IsReadOnly="True"
-                                     Text="未选择目录"/>
+                                     Text="No folder selected"/>
 
                             <Button x:Name="BrowseDataWinButton"
                                     Grid.Row="0"
                                     Grid.Column="1"
                                     Style="{StaticResource SecondaryButtonStyle}"
-                                    Content="浏览 data.win"
+                                    Content="Browse data.win"
                                     Click="BrowseDataWinButton_Click"/>
 
                             <TextBlock Grid.Row="1"
                                        Grid.ColumnSpan="2"
                                        Margin="0,10,0,0"
                                        Style="{StaticResource CaptionStyle}"
-                                       Text="拖拽提示：可拖入包含 data.win 的文件夹，或直接拖入 data.win。"/>
+                                       Text="Tip: drop a folder that contains data.win, or drop data.win directly."/>
 
                             <StackPanel Grid.Row="2"
                                         Grid.ColumnSpan="2"
                                         Margin="0,12,0,0">
                                 <TextBlock x:Name="DataWinPathTextBlock"
-                                           Text="data.win 路径：未检测"
+                                           Text="data.win path: not detected"
                                            Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 <TextBlock x:Name="GameVersionTextBlock"
                                            Margin="0,6,0,0"
-                                           Text="版本：未检测"
+                                           Text="Version: not detected"
                                            Foreground="{DynamicResource TextPrimaryBrush}"
                                            FontWeight="SemiBold"/>
                                 <TextBlock x:Name="UteStatusTextBlock"
                                            Margin="0,4,0,0"
-                                           Text="UTE 模板状态：等待检测..."
+                                           Text="UTE template: waiting for detection..."
                                            Foreground="{DynamicResource TextMutedBrush}"
                                            FontSize="12"/>
                             </StackPanel>
@@ -175,12 +175,12 @@
             <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="580">
                     <StackPanel>
-                        <TextBlock Text="移植配置" Style="{StaticResource SectionTitleStyle}"/>
-                        <TextBlock Text="主开关启用后可展开键盘子选项，支持测试 data.win 修改。"
+                        <TextBlock Text="Porting Options" Style="{StaticResource SectionTitleStyle}"/>
+                        <TextBlock Text="Enable the main switch to expand the on-screen keyboard sub-options."
                                Margin="0,10,0,0" Style="{StaticResource CaptionStyle}"/>
 
                         <CheckBox x:Name="AddMobileKeyCheckBox"
-                              Content="植入游戏键盘"
+                              Content="Inject in-game keyboard"
                               Margin="0,14,0,8"
                               Checked="AddMobileKeyCheckBox_Checked"
                               Unchecked="AddMobileKeyCheckBox_Unchecked"/>
@@ -196,60 +196,60 @@
                             Padding="12"
                             Margin="0,0,0,10">
                             <StackPanel>
-                                <TextBlock Text="键盘子选项"
+                                <TextBlock Text="Keyboard sub-options"
                                        FontSize="12"
                                        FontWeight="SemiBold"
                                        Foreground="{DynamicResource TextSecondaryBrush}"
                                        Margin="0,0,0,6"/>
                                 <StackPanel IsEnabled="{Binding IsChecked, ElementName=AddMobileKeyCheckBox}">
                                     <CheckBox x:Name="MobileF2CheckBox"
-                                          Content="重开键 (mobile_f2)"
+                                          Content="Restart key (mobile_f2)"
                                           IsChecked="True"
                                           Margin="0,0,0,8"/>
                                     <CheckBox x:Name="MobileHealCheckBox"
-                                          Content="回血键 (mobile_heal)"
+                                          Content="Heal key (mobile_heal)"
                                           Margin="0,0,0,8"/>
                                     <CheckBox x:Name="MobileCnCheckBox"
-                                          Content="中文化 (mobile_cn)"
+                                          Content="Chinese labels (mobile_cn)"
                                           IsChecked="True"
                                           Margin="0,0,0,8"/>
                                     <CheckBox x:Name="AndroidKeyboardCheckBox"
-                                          Content="系统键盘 (Android_System_Keyboard)"
+                                          Content="System keyboard (Android_System_Keyboard)"
                                           Margin="0,0,0,8"/>
                                     <CheckBox x:Name="DualControlsCheckBox"
-                                          Content="双摇杆模式 (dual_controls)"
+                                          Content="Dual joystick mode (dual_controls)"
                                           Margin="0,0,0,4"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
 
                         <CheckBox x:Name="AutoTouchLayerCheckBox"
-                              Content="自动触控层（读取 data.win 按键，自绘摇杆+按钮+EDIT）"
+                              Content="Auto touch layer (reads keys from data.win: joystick + buttons + EDIT)"
                               IsChecked="True"
                               Margin="0,4,0,4"
-                              ToolTip="扫描 data.win 字节码，找出游戏真正使用的键盘按键，只为这些按键生成触控按钮；内置 EDIT 编辑模式，可拖动、缩放、隐藏按钮，也可整体关闭触控。"/>
+                              ToolTip="Scans the data.win bytecode to find the keyboard keys the game actually uses and creates touch buttons only for them. Includes an EDIT mode to move, resize and hide controls, or turn touch controls off entirely."/>
 
                         <CheckBox x:Name="MobileOptimizationCheckBox"
-                              Content="移动端性能优化（不需要 YYC）"
+                              Content="Mobile performance optimization (no YYC required)"
                               IsChecked="True"
                               Margin="0,4,0,4"
-                              ToolTip="关闭纹理插值与重复、降低圆形精度、限制 application_surface 分辨率上限，让低端手机也能流畅运行，无需 YYC 编译。"/>
+                              ToolTip="Disables texture interpolation and repeat, lowers circle precision and caps the application_surface resolution so low-end phones run smoothly, without using the YYC compiler."/>
 
                         <CheckBox x:Name="EmbedMusicCheckBox"
-                              Content="把音乐内置进 data.win"
+                              Content="Embed music into data.win"
                               Margin="0,4,0,4"
-                              ToolTip="执行“导入所有音乐.csx”，自动读取 data.win 同目录下的音频文件并内置到 data.win。"/>
+                              ToolTip="Runs the import-all-music script: reads the audio files next to data.win and embeds them into data.win."/>
 
                         <Separator Margin="0,16,0,12"/>
 
                         <!-- APK Settings -->
-                        <TextBlock Text="APK 打包设置"
+                        <TextBlock Text="APK Build Settings"
                                FontSize="14"
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                         <StackPanel Margin="0,10,0,0">
-                            <TextBlock Text="应用名称" Style="{StaticResource FieldLabelStyle}"/>
+                            <TextBlock Text="App name" Style="{StaticResource FieldLabelStyle}"/>
                             <TextBox x:Name="AppNameTextBox"
                                  Text="MyGame"
                                  Style="{StaticResource FieldInputStyle}"
@@ -258,8 +258,8 @@
                                    FontSize="11"
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,4,0,0"
-                                   Text="合法字符：中英文、数字、空格、下划线、连字符。禁止 ' 、&quot; 、&lt; 、&gt; 、&amp;。"/>
-                            <TextBlock Text="包名 (Package Name)"
+                                   Text="Allowed: letters, digits, spaces, underscores and hyphens. Not allowed: ' &quot; &lt; &gt; &amp;"/>
+                            <TextBlock Text="Package name"
                                    Style="{StaticResource FieldLabelStyle}"
                                    Margin="0,10,0,0"/>
                             <TextBox x:Name="PackageNameTextBox"
@@ -270,9 +270,9 @@
                                    FontSize="11"
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,4,0,0"
-                                   Text="格式：字母开头，仅字母 / 数字 / 下划线，以 . 分段，至少两段。例：com.example.mygame"/>
+                                   Text="Format: starts with a letter, only letters / digits / underscores, dot-separated, at least two parts. Example: com.example.mygame"/>
 
-                            <TextBlock Text="版本号"
+                            <TextBlock Text="Version"
                                    Style="{StaticResource FieldLabelStyle}"
                                    Margin="0,10,0,0"/>
                             <TextBox x:Name="VersionTextBox"
@@ -283,9 +283,9 @@
                                    FontSize="11"
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,4,0,0"
-                                   Text="显示版本（versionName），任意字符串，建议 x.y.z。禁止控制字符与路径非法符号。"/>
+                                   Text="Display version (versionName). Any string, x.y.z recommended. Control characters and invalid path symbols are rejected."/>
 
-                            <TextBlock Text="应用图标"
+                            <TextBlock Text="App icon"
                                    Style="{StaticResource FieldLabelStyle}"
                                    Margin="0,10,0,0"/>
                             <Grid>
@@ -296,11 +296,11 @@
                                 <TextBox x:Name="IconPathTextBox"
                                      Grid.Column="0"
                                      IsReadOnly="True"
-                                     Text="未选择图标（使用默认）"
+                                     Text="No icon selected (default will be used)"
                                      Style="{StaticResource FieldInputStyle}"/>
                                 <Button x:Name="BrowseIconButton"
                                     Grid.Column="1"
-                                    Content="浏览"
+                                    Content="Browse"
                                     Style="{StaticResource SecondaryButtonStyle}"
                                     Click="BrowseIconButton_Click"
                                     Margin="8,0,0,0"/>
@@ -311,7 +311,7 @@
                                    Foreground="{DynamicResource TextMutedBrush}"
                                    Margin="0,6,0,0"/>
 
-                            <TextBlock Text="加载图片"
+                            <TextBlock Text="Splash image"
                                    Style="{StaticResource FieldLabelStyle}"
                                    Margin="0,10,0,0"/>
                             <Grid>
@@ -322,11 +322,11 @@
                                 <TextBox x:Name="SplashPathTextBox"
                                      Grid.Column="0"
                                      IsReadOnly="True"
-                                     Text="未选择加载图片（使用默认）"
+                                     Text="No splash image selected (default will be used)"
                                      Style="{StaticResource FieldInputStyle}"/>
                                 <Button x:Name="BrowseSplashButton"
                                     Grid.Column="1"
-                                    Content="浏览"
+                                    Content="Browse"
                                     Style="{StaticResource SecondaryButtonStyle}"
                                     Click="BrowseSplashButton_Click"
                                     Margin="8,0,0,0"/>
@@ -338,7 +338,7 @@
                                    Margin="0,6,0,0"/>
 
                             <Button x:Name="ResetButton"
-                                Content="重置配置"
+                                Content="Reset"
                                 Height="36"
                                 Margin="0,12,0,0"
                                 Click="ResetButton_Click"
@@ -359,7 +359,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="就绪"
+                    <TextBlock Text="Ready"
                                x:Name="StatusTextBlock"
                                VerticalAlignment="Center"
                                FontSize="13"
@@ -369,7 +369,7 @@
                             Grid.Column="1"
                             VerticalAlignment="Center">
                     <Button x:Name="StartPortingButton"
-                            Content="▶ 开始移植"
+                            Content="▶ Start porting"
                             Width="150"
                             Height="40"
                             FontSize="14"
@@ -380,7 +380,7 @@
                             Margin="0"
                             Style="{StaticResource PrimaryActionButtonStyle}"/>
                     <Button x:Name="CancelButton"
-                            Content="取消"
+                            Content="Cancel"
                             Width="150"
                             Height="40"
                             Margin="10,0,0,0"
@@ -403,17 +403,17 @@
 
                 <Grid Grid.Row="0">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="活动日志" Style="{StaticResource SectionTitleStyle}"/>
+                        <TextBlock Text="Activity Log" Style="{StaticResource SectionTitleStyle}"/>
                         <Border Background="{DynamicResource SurfaceAltBrush}"
                                 CornerRadius="5" Padding="7,3" Margin="9,0,0,0">
-                            <TextBlock Text="实时"
+                            <TextBlock Text="Live"
                                        FontSize="10"
                                        FontWeight="SemiBold"
                                        Foreground="{DynamicResource AccentBrush}"/>
                         </Border>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <TextBlock Text="构建进度"
+                        <TextBlock Text="Build progress"
                                    VerticalAlignment="Center"
                                    Style="{StaticResource CaptionStyle}"/>
                         <ProgressBar x:Name="BuildProgressBar"

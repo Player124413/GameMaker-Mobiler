@@ -76,15 +76,15 @@ public sealed class UtmtService
         var androidSystemKeyboard = options[4];
         var dualControls = options[5];
         var embedMusicIntoDataWin = options[6];
-        // 可选新增开关（保持向后兼容：旧调用方只传 7 个值时使用默认值）。
+        // Optional switches; older callers pass only 7 values, so defaults are used then.
         var autoTouchLayer = options.Length > 7 && options[7];
         var mobileOptimization = options.Length > 8 && options[8];
 
         var gameDir = Path.GetDirectoryName(dataWinPath) ?? string.Empty;
         var isUte = DetectUteTemplate(gameDir);
 
-        var workingDirectory = Path.Combine(Path.GetTempPath(), $"gmm_utmt_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(workingDirectory);
+        // ASCII-only working directory (see SafeWorkspace): non-ASCII paths break the toolchain.
+        var workingDirectory = SafeWorkspace.CreateDirectory("utmt");
         var workingOutputPath = Path.Combine(workingDirectory, Path.GetFileName(finalOutputPath));
 
         try
@@ -93,7 +93,7 @@ public sealed class UtmtService
             using var data = DataWinVersionReader.ReadData(
                 workingOutputPath,
                 warningHandler: (warning, isImportant) =>
-                    _log?.Invoke($"data.win 警告: {warning}", isImportant),
+                    _log?.Invoke($"data.win warning: {warning}", isImportant),
                 messageHandler: message => _log?.Invoke(message, false));
             var version = DataWinVersionReader.FromData(data);
             var majorVer = (int)version.Major;
@@ -105,7 +105,7 @@ public sealed class UtmtService
                 _log,
                 cancellationToken);
 
-            // Step 1: Mobile 集成脚本（任何游戏均可执行）
+            // Step 1: mobile integration script (safe for any game)
             if (addMobileKey)
             {
                 var integrationScriptPath = GetIntegrationScriptPath();
@@ -114,15 +114,15 @@ public sealed class UtmtService
                     throw new FileNotFoundException("Mobile integration script not found", integrationScriptPath);
                 }
 
-                _log?.Invoke("执行 Mobile 集成脚本...", false);
+                _log?.Invoke("Running the mobile integration script...", false);
                 await scriptGlobals.RunScriptFileAsync(integrationScriptPath).ConfigureAwait(false);
             }
             else
             {
-                _log?.Invoke("主开关未启用：跳过 Mobile 集成脚本。", false);
+                _log?.Invoke("Main switch is off: skipping the mobile integration script.", false);
             }
 
-            // Step 2: UTE 修复脚本（自动检测，仅 UTE 模板游戏执行）
+            // Step 2: UTE repair script (auto-detected, UTE template games only)
             if (isUte)
             {
                 var uteRepairScriptPath = GetUteRepairScriptPathByVersion(majorVer, minorVer);
@@ -131,15 +131,15 @@ public sealed class UtmtService
                     throw new FileNotFoundException($"UTE repair script not found: {uteRepairScriptPath}", uteRepairScriptPath);
                 }
 
-                _log?.Invoke($"检测到 UTE 模板游戏，执行 UTE 修复脚本: {Path.GetFileName(uteRepairScriptPath)}", false);
+                _log?.Invoke($"UTE template game detected, running the UTE repair script: {Path.GetFileName(uteRepairScriptPath)}", false);
                 await scriptGlobals.RunScriptFileAsync(uteRepairScriptPath).ConfigureAwait(false);
             }
             else
             {
-                _log?.Invoke("非 UTE 模板游戏，跳过 UTE 修复脚本。", false);
+                _log?.Invoke("Not a UTE template game: skipping the UTE repair script.", false);
             }
 
-            // Step 3: 将 data.win 目录下的音乐内置进 data.win（用户可勾选）
+            // Step 3: embed the music next to data.win into data.win (opt-in)
             if (embedMusicIntoDataWin)
             {
                 var importMusicScriptPath = GetImportAllMusicScriptPath();
@@ -148,25 +148,25 @@ public sealed class UtmtService
                     throw new FileNotFoundException("Import all music script not found", importMusicScriptPath);
                 }
 
-                _log?.Invoke($"已勾选音乐内置，执行导入所有音乐脚本: {Path.GetFileName(importMusicScriptPath)}", false);
-                _log?.Invoke($"音乐导入目录（真实游戏目录）: {gameDir}", false);
+                _log?.Invoke($"Music embedding enabled, running the import-all-music script: {Path.GetFileName(importMusicScriptPath)}", false);
+                _log?.Invoke($"Music import folder (original game folder): {gameDir}", false);
                 await scriptGlobals.RunScriptFileAsync(importMusicScriptPath).ConfigureAwait(false);
             }
             else
             {
-                _log?.Invoke("未勾选音乐内置：跳过导入所有音乐脚本。", false);
+                _log?.Invoke("Music embedding disabled: skipping the import-all-music script.", false);
             }
 
-            // Step 4: 自动触控层（读取 data.win 里真正用到的按键，只绘制这些键）
+            // Step 4: auto touch layer (draws only the keys the game really uses)
             if (autoTouchLayer)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                _log?.Invoke("分析 data.win 中实际使用的键盘按键...", false);
+                _log?.Invoke("Analyzing which keyboard keys the game actually uses...", false);
 
                 var report = KeyUsageAnalyzer.Analyze(data, _log);
                 if (report.IsEmpty)
                 {
-                    _log?.Invoke("未检测到任何键盘调用，使用默认触控布局（方向键 + Z/X/C/回车/ESC）。", true);
+                    _log?.Invoke("No keyboard calls detected; falling back to the default layout (arrow keys + Z/X/C/Enter/Esc).", true);
                     report = KeyUsageAnalyzer.CreateFallback();
                 }
 
@@ -177,17 +177,17 @@ public sealed class UtmtService
                     IsGameMaker2 = data.IsGameMaker2()
                 };
 
-                _log?.Invoke("注入自绘触控层（摇杆 / 按钮 / EDIT 编辑模式）...", false);
+                _log?.Invoke("Injecting the touch layer (joystick / buttons / EDIT mode)...", false);
                 TouchLayerInjector.Inject(data, report, touchOptions, scriptGlobals.MainThreadAction, _log);
             }
             else
             {
-                _log?.Invoke("未启用自动触控层：跳过键位分析与触控层注入。", false);
+                _log?.Invoke("Auto touch layer disabled: skipping key analysis and touch layer injection.", false);
             }
 
             if (!addMobileKey)
             {
-                _log?.Invoke("主开关未启用：跳过 mb_cont_mobile 全局变量写入。", false);
+                _log?.Invoke("Main switch is off: skipping the mb_cont_mobile globals patch.", false);
                 await SaveDataAsync(data, workingOutputPath, finalOutputPath, cancellationToken).ConfigureAwait(false);
                 return;
             }
@@ -201,13 +201,13 @@ public sealed class UtmtService
             var templateContent = await File.ReadAllTextAsync(templatePath, cancellationToken).ConfigureAwait(false);
             var patchedContent = PatchMobileGlobals(templateContent, addMobileKey, mobileF2, mobileHeal, mobileCn, androidSystemKeyboard, dualControls);
 
-            _log?.Invoke($"写入全局变量配置到 {Path.GetFileName(workingOutputPath)}...", false);
+            _log?.Invoke($"Writing global variable configuration into {Path.GetFileName(workingOutputPath)}...", false);
             cancellationToken.ThrowIfCancellationRequested();
             var mobileControlCode = data.Code.ByName("gml_Object_mb_cont_mobile_Create_0");
             if (mobileControlCode is null)
             {
                 throw new InvalidDataException(
-                    "data.win 中不存在 gml_Object_mb_cont_mobile_Create_0。");
+                    "gml_Object_mb_cont_mobile_Create_0 does not exist in data.win.");
             }
 
             var importGroup = new CodeImportGroup(data)
@@ -242,7 +242,7 @@ public sealed class UtmtService
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _log?.Invoke("保存修改后的 data.win...", false);
+        _log?.Invoke("Saving the patched data.win...", false);
 
         using (var dataWriteStream = new FileStream(
                    workingOutputPath,
@@ -259,7 +259,7 @@ public sealed class UtmtService
             File.Copy(workingOutputPath, finalOutputPath, overwrite: true);
         }
 
-        _log?.Invoke($"已保存为: {finalOutputPath}", false);
+        _log?.Invoke($"Saved to: {finalOutputPath}", false);
         return Task.CompletedTask;
     }
 

@@ -7,22 +7,22 @@ using UndertaleModLib.Models;
 namespace GameMaker_Mobiler.Services;
 
 /// <summary>
-/// 将自绘触控层（摇杆 + 按钮 + 编辑模式）注入到 data.win。
-/// 全程只使用 UndertaleModLib 的官方 API：
-///   - 用 <see cref="CodeImportGroup"/> 编译并挂接事件（对象/脚本会被自动创建）；
-///   - 把对象实例放进第一个房间（GMS2 使用实例图层，GMS1 使用 GameObjects 列表）；
-///   - 对象设为 persistent，保证切换房间后依旧存在。
+/// Injects the self-drawn touch layer (joystick + buttons + EDIT mode) into data.win.
+/// Only official UndertaleModLib APIs are used:
+///   - <see cref="CodeImportGroup"/> compiles the code and links the events (the object is created automatically);
+///   - the instance is placed in the first room (instance layer on GMS2, GameObjects list on GMS1);
+///   - the object is persistent so it survives room changes.
 /// </summary>
 public static class TouchLayerInjector
 {
     /// <summary>
-    /// 执行注入。
+    /// Runs the injection.
     /// </summary>
-    /// <param name="data">已加载的 data.win。</param>
-    /// <param name="report">键位分析结果。</param>
-    /// <param name="options">生成选项。</param>
-    /// <param name="mainThreadAction">对 data 结构做变更时使用的调度器。</param>
-    /// <param name="log">日志回调。</param>
+    /// <param name="data">The loaded data.win.</param>
+    /// <param name="report">Result of the key usage analysis.</param>
+    /// <param name="options">Generation options.</param>
+    /// <param name="mainThreadAction">Dispatcher used when mutating data structures.</param>
+    /// <param name="log">Logging callback.</param>
     public static void Inject(
         UndertaleData data,
         KeyUsageReport report,
@@ -43,7 +43,7 @@ public static class TouchLayerInjector
             AutoCreateAssets = true
         };
 
-        // 对象事件（不创建任何脚本资源：GMS 2.3 前后脚本机制差异极大，内联最安全）。
+        // Object events only: no script assets are created, because the script mechanism changed drastically in GMS 2.3.
         group.QueueReplace($"gml_Object_{objectName}_Create_0", TouchLayerGenerator.BuildCreate(report, options));
         group.QueueReplace($"gml_Object_{objectName}_Step_0", TouchLayerGenerator.BuildStep());
         group.QueueReplace($"gml_Object_{objectName}_Draw_64", TouchLayerGenerator.BuildDrawGui());
@@ -54,7 +54,7 @@ public static class TouchLayerInjector
         group.Import();
 
         var touchObject = data.GameObjects.ByName(objectName)
-            ?? throw new InvalidOperationException($"未能创建触控对象 {objectName}。");
+            ?? throw new InvalidOperationException($"Failed to create the touch object {objectName}.");
 
         touchObject.Persistent = true;
         touchObject.Visible = true;
@@ -62,13 +62,13 @@ public static class TouchLayerInjector
 
         PlaceInFirstRoom(data, touchObject, mainThreadAction, log);
 
-        log?.Invoke($"触控层已注入：{report.Buttons.Count} 个按钮" +
-                    $"{(report.NeedsJoystick && options.EnableJoystick ? " + 摇杆" : "")}。", false);
+        log?.Invoke($"Touch layer injected: {report.Buttons.Count} button(s)" +
+                    $"{(report.NeedsJoystick && options.EnableJoystick ? " + joystick" : "")}.", false);
     }
 
     /// <summary>
-    /// 把触控对象放进第一个房间，保证游戏一开始就有控制层。
-    /// 已存在则不重复添加（重复移植时安全）。
+    /// Places the touch object in the first room so controls exist from the start.
+    /// Existing instances are not duplicated, so re-porting stays safe.
     /// </summary>
     private static void PlaceInFirstRoom(
         UndertaleData data,
@@ -78,7 +78,7 @@ public static class TouchLayerInjector
     {
         if (data.Rooms.Count == 0)
         {
-            log?.Invoke("警告：data.win 中没有任何房间，触控层无法自动放置。", true);
+            log?.Invoke("Warning: data.win contains no rooms, the touch layer could not be placed.", true);
             return;
         }
 
@@ -86,7 +86,7 @@ public static class TouchLayerInjector
 
         if (room.GameObjects.Any(o => o?.ObjectDefinition == touchObject))
         {
-            log?.Invoke("第一个房间已存在触控层实例，跳过放置。", false);
+            log?.Invoke("The first room already contains a touch layer instance, skipping placement.", false);
             return;
         }
 
@@ -109,7 +109,7 @@ public static class TouchLayerInjector
         {
             room.GameObjects.Add(instance);
 
-            // GMS2 房间使用图层；必须把实例也加入某个实例图层，否则不会被创建。
+            // GMS2 rooms use layers: the instance must also join an instance layer or it is never created.
             if (data.IsGameMaker2())
             {
                 var layer = room.Layers.FirstOrDefault(l =>
@@ -133,10 +133,10 @@ public static class TouchLayerInjector
                 layer.InstancesData!.Instances.Add(instance);
             }
 
-            // 2024.13+ 需要维护首个房间的实例创建顺序表。
+            // GameMaker 2024.13+ keeps an instance creation order list for the first room.
             room.InstanceCreationOrderIDs?.InstanceIDs.Add(instanceId);
         });
 
-        log?.Invoke($"触控层实例已放入房间「{room.Name?.Content}」。", false);
+        log?.Invoke($"Touch layer instance placed in room \"{room.Name?.Content}\".", false);
     }
 }

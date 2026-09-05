@@ -49,13 +49,13 @@ public sealed class UtmtScriptGlobals
     public UndertaleData Data { get; }
 
     /// <summary>
-    /// 当前正在操作的 data.win 物理路径（可能是临时副本）。
+    /// Physical path of the data.win currently being modified (may be a temporary copy).
     /// </summary>
     public string FilePath { get; }
 
     /// <summary>
-    /// 用户真实选中的游戏目录（即原始 data.win 所在目录）。
-    /// 用于音乐导入、音频组 .dat 读写等需要访问源目录的场景，避免脚本在临时副本目录里找不到文件。
+    /// The game folder the user actually selected (where the original data.win lives).
+    /// Used for music import and audiogroup .dat access so scripts do not look inside the temporary copy.
     /// </summary>
     public string GameDirectory { get; }
 
@@ -125,14 +125,14 @@ public sealed class UtmtScriptGlobals
     }
 
     /// <summary>
-    /// 移植流水线中禁用所有弹窗询问：统一按照“是/确认”处理，避免阻塞非交互流水线。
-    /// 项目约束：Mobile集成脚本.csx 必须将所有 ScriptQuestion hook 变量设为 true 以抑制对话框。
+    /// All dialogs are suppressed in the pipeline: every question is answered with "yes".
+    /// The bundled integration script relies on this to run without user interaction.
     /// </summary>
     public bool ScriptQuestion(string message) => true;
 
     /// <summary>
-    /// 选择音乐导入目录时优先返回真实游戏目录（用户选中的源目录），
-    /// 这样即使 data.win 被复制到临时路径，也能正确扫描到源目录下的音乐文件。
+    /// Returns the real game folder for the music import directory prompt,
+    /// so audio files are found even though data.win itself was copied to a temporary path.
     /// </summary>
     public string? PromptChooseDirectory()
     {
@@ -143,7 +143,7 @@ public sealed class UtmtScriptGlobals
     }
 
     /// <summary>
-    /// UTMT 的 SyncBinding 解除钩子；当前实现不维护绑定，空实现即可。
+    /// UTMT SyncBinding hook; this host keeps no bindings, so an empty implementation is fine.
     /// </summary>
     public void DisableAllSyncBindings()
     {
@@ -177,13 +177,13 @@ public sealed class UtmtScriptGlobals
         catch (CompilationErrorException ex)
         {
             throw new InvalidOperationException(
-                $"脚本编译失败: {Path.GetFileName(fullPath)}\n{string.Join(Environment.NewLine, ex.Diagnostics)}",
+                $"Script compilation failed: {Path.GetFileName(fullPath)}\n{string.Join(Environment.NewLine, ex.Diagnostics)}",
                 ex);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             throw new InvalidOperationException(
-                $"脚本执行失败: {Path.GetFileName(fullPath)}\n{ScriptingUtil.PrettifyException(ex)}",
+                $"Script execution failed: {Path.GetFileName(fullPath)}\n{ScriptingUtil.PrettifyException(ex)}",
                 ex);
         }
         finally

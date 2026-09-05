@@ -7,7 +7,7 @@ using UndertaleModLib.Models;
 namespace GameMaker_Mobiler.Services;
 
 /// <summary>
-/// 从 GameMaker data.win / data.unx / data.ios / data.droid 文件解析出的版本信息。
+/// Version information parsed from a GameMaker data.win / data.unx / data.ios / data.droid file.
 /// </summary>
 public sealed record DataWinVersion(
     uint Major,
@@ -27,8 +27,8 @@ public sealed record DataWinVersion(
 }
 
 /// <summary>
-/// 使用 UndertaleModLib 的完整读取器获取版本信息和编译方式。
-/// 失败时返回 <see cref="Invalid"/>。
+/// Uses the full UndertaleModLib reader to obtain the version and the compilation mode.
+/// Returns <see cref="Invalid"/> on failure.
 /// </summary>
 public static class DataWinVersionReader
 {
@@ -85,8 +85,8 @@ public static class DataWinVersionReader
             StructuralFloor: "UndertaleModLib full read + IsYYC");
     }
 
-    /// <summary>解析 data.win。失败时返回 <see cref="Invalid"/>。</summary>
-    /// <exception cref="FileNotFoundException">文件不存在。</exception>
+    /// <summary>Parses data.win. Returns <see cref="Invalid"/> on failure.</summary>
+    /// <exception cref="FileNotFoundException">The file does not exist.</exception>
     public static DataWinVersion Read(string dataWinPath)
     {
         if (!File.Exists(dataWinPath))
@@ -94,8 +94,8 @@ public static class DataWinVersionReader
 
         try
         {
-            // 现代 GMS2 文件的 GEN8 版本字段通常固定为 2.0.0.0。
-            // 完整读取会先收集所有 chunk，再由 UndertaleModLib 根据文件特征推断实际版本。
+            // In modern GMS2 files the GEN8 version field is usually pinned to 2.0.0.0.
+            // A full read collects every chunk first, then UndertaleModLib infers the real version.
             using var data = ReadData(dataWinPath);
             return FromData(data);
         }
@@ -105,7 +105,7 @@ public static class DataWinVersionReader
         }
     }
 
-    /// <summary>格式化显示版本字符串（与原始逻辑一致）。</summary>
+    /// <summary>Formats the display version string.</summary>
     private static string FormatDisplayVersion(uint major, uint minor, uint release, uint build, byte bytecodeVersion)
     {
         string engine = major >= 2 ? "GMS2" : "GMS1";
@@ -141,7 +141,7 @@ public static class DataWinVersionReader
         return $"{engine} {versionCore} (bytecode {bytecodeVersion})";
     }
 
-    /// <summary>解析失败的占位版本信息（与原始定义完全一致）。</summary>
+    /// <summary>Placeholder version information used when parsing fails.</summary>
     public static DataWinVersion Invalid { get; } = new(
         Major: 0,
         Minor: 0,
