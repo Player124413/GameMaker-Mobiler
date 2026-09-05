@@ -579,7 +579,9 @@ namespace GameMaker_Mobiler
                 MobileCnCheckBox.IsChecked == true,
                 AndroidKeyboardCheckBox.IsChecked == true,
                 DualControlsCheckBox.IsChecked == true,
-                EmbedMusicCheckBox.IsChecked == true
+                EmbedMusicCheckBox.IsChecked == true,
+                AutoTouchLayerCheckBox.IsChecked == true,
+                MobileOptimizationCheckBox.IsChecked == true
             };
 
             var packageName = PackageNameTextBox.Text.Trim();
@@ -737,6 +739,8 @@ namespace GameMaker_Mobiler
             AndroidKeyboardCheckBox.IsChecked = false;
             DualControlsCheckBox.IsChecked = false;
             EmbedMusicCheckBox.IsChecked = false;
+            AutoTouchLayerCheckBox.IsChecked = true;
+            MobileOptimizationCheckBox.IsChecked = true;
 
             BuildProgressBar.Value = 0;
             ProgressTextBlock.Text = "0%";

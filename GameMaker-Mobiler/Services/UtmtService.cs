@@ -76,6 +76,9 @@ public sealed class UtmtService
         var androidSystemKeyboard = options[4];
         var dualControls = options[5];
         var embedMusicIntoDataWin = options[6];
+        // 可选新增开关（保持向后兼容：旧调用方只传 7 个值时使用默认值）。
+        var autoTouchLayer = options.Length > 7 && options[7];
+        var mobileOptimization = options.Length > 8 && options[8];
 
         var gameDir = Path.GetDirectoryName(dataWinPath) ?? string.Empty;
         var isUte = DetectUteTemplate(gameDir);
@@ -154,6 +157,41 @@ public sealed class UtmtService
                 _log?.Invoke("未勾选音乐内置：跳过导入所有音乐脚本。", false);
             }
 
+            // Step 4: 自动触控层（读取 data.win 里真正用到的按键，只绘制这些键）
+            if (autoTouchLayer)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                _log?.Invoke("分析 data.win 中实际使用的键盘按键...", false);
+
+                var report = KeyUsageAnalyzer.Analyze(data, _log);
+                if (report.IsEmpty)
+                {
+                    _log?.Invoke("未检测到任何键盘调用，使用默认触控布局（方向键 + Z/X/C/回车/ESC）。", true);
+                    report = KeyUsageAnalyzer.CreateFallback();
+                }
+
+                var touchOptions = new TouchLayerOptions
+                {
+                    EnableJoystick = true,
+                    EnableOptimization = mobileOptimization,
+                    IsGameMaker2 = data.IsGameMaker2()
+                };
+
+                _log?.Invoke("注入自绘触控层（摇杆 / 按钮 / EDIT 编辑模式）...", false);
+                TouchLayerInjector.Inject(data, report, touchOptions, scriptGlobals.MainThreadAction, _log);
+            }
+            else
+            {
+                _log?.Invoke("未启用自动触控层：跳过键位分析与触控层注入。", false);
+            }
+
+            if (!addMobileKey)
+            {
+                _log?.Invoke("主开关未启用：跳过 mb_cont_mobile 全局变量写入。", false);
+                await SaveDataAsync(data, workingOutputPath, finalOutputPath, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
             var templatePath = GetMobileContTemplatePath();
             if (!File.Exists(templatePath))
             {
@@ -179,24 +217,7 @@ public sealed class UtmtService
             importGroup.QueueReplace(mobileControlCode, patchedContent);
             importGroup.Import();
 
-            cancellationToken.ThrowIfCancellationRequested();
-            _log?.Invoke("保存修改后的 data.win...", false);
-            using (var dataWriteStream = new FileStream(
-                       workingOutputPath,
-                       FileMode.Create,
-                       FileAccess.Write,
-                       FileShare.None))
-            {
-                UndertaleIO.Write(dataWriteStream, data);
-            }
-
-            if (!string.Equals(workingOutputPath, finalOutputPath, StringComparison.OrdinalIgnoreCase))
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(finalOutputPath)!);
-                File.Copy(workingOutputPath, finalOutputPath, overwrite: true);
-            }
-
-            _log?.Invoke($"已保存为: {finalOutputPath}", false);
+            await SaveDataAsync(data, workingOutputPath, finalOutputPath, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -212,6 +233,34 @@ public sealed class UtmtService
                 // Ignore temp cleanup errors.
             }
         }
+    }
+
+    private Task SaveDataAsync(
+        UndertaleData data,
+        string workingOutputPath,
+        string finalOutputPath,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _log?.Invoke("保存修改后的 data.win...", false);
+
+        using (var dataWriteStream = new FileStream(
+                   workingOutputPath,
+                   FileMode.Create,
+                   FileAccess.Write,
+                   FileShare.None))
+        {
+            UndertaleIO.Write(dataWriteStream, data);
+        }
+
+        if (!string.Equals(workingOutputPath, finalOutputPath, StringComparison.OrdinalIgnoreCase))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(finalOutputPath)!);
+            File.Copy(workingOutputPath, finalOutputPath, overwrite: true);
+        }
+
+        _log?.Invoke($"已保存为: {finalOutputPath}", false);
+        return Task.CompletedTask;
     }
 
     private static string PatchMobileGlobals(

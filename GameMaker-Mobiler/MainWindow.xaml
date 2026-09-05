@@ -223,6 +223,18 @@
                             </StackPanel>
                         </Border>
 
+                        <CheckBox x:Name="AutoTouchLayerCheckBox"
+                              Content="自动触控层（读取 data.win 按键，自绘摇杆+按钮+EDIT）"
+                              IsChecked="True"
+                              Margin="0,4,0,4"
+                              ToolTip="扫描 data.win 字节码，找出游戏真正使用的键盘按键，只为这些按键生成触控按钮；内置 EDIT 编辑模式，可拖动、缩放、隐藏按钮，也可整体关闭触控。"/>
+
+                        <CheckBox x:Name="MobileOptimizationCheckBox"
+                              Content="移动端性能优化（不需要 YYC）"
+                              IsChecked="True"
+                              Margin="0,4,0,4"
+                              ToolTip="关闭纹理插值与重复、降低圆形精度、限制 application_surface 分辨率上限，让低端手机也能流畅运行，无需 YYC 编译。"/>
+
                         <CheckBox x:Name="EmbedMusicCheckBox"
                               Content="把音乐内置进 data.win"
                               Margin="0,4,0,4"
