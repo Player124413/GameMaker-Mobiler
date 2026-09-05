@@ -24,9 +24,9 @@ if (edit == 2 || edit == 1 || (edit == 0 && black_fade > 0))
     draw_set_halign(_old_halign);
 }
 
-draw_sprite_ext(spr_z_button, keyboard_check(ord("Z")), zx, zy, button_scale, button_scale, 0, button_colour, controls_opacity * image_alpha);
-draw_sprite_ext(spr_x_button, keyboard_check(ord("X")), xx, xy, button_scale, button_scale, 0, button_colour, controls_opacity * image_alpha);
-draw_sprite_ext(spr_c_button, keyboard_check(ord("C")), cx, cy, button_scale, button_scale, 0, button_colour, controls_opacity * image_alpha);
+draw_sprite_ext(spr_z_button, keyboard_check(ord("Z")), (global.dual_controls == 1) ? zx2 : zx, (global.dual_controls == 1) ? zy2 : zy, button_scale, button_scale, 0, button_colour, controls_opacity * image_alpha);
+draw_sprite_ext(spr_x_button, keyboard_check(ord("X")), (global.dual_controls == 1) ? xx2 : xx, (global.dual_controls == 1) ? xy2 : xy, button_scale, button_scale, 0, button_colour, controls_opacity * image_alpha);
+draw_sprite_ext(spr_c_button, keyboard_check(ord("C")), (global.dual_controls == 1) ? cx2 : cx, (global.dual_controls == 1) ? cy2 : cy, button_scale, button_scale, 0, button_colour, controls_opacity * image_alpha);
 
 if (global.mobile_f2 == 1)
     draw_sprite_ext(spr_button_restart, keyboard_check(vk_f2), f2x, f2y, button_scale, button_scale, 0, button_colour, controls_opacity * image_alpha);
@@ -39,4 +39,11 @@ if (global.Android_System_Keyboard == 1)
 
 draw_sprite_ext(spr_joybase, joystick_type, analog_posx, analog_posy, analog_scale, analog_scale, 0, button_colour, controls_opacity * image_alpha);
 draw_sprite_ext(spr_joystick, joystick_type, analog_center_x, analog_center_y, analog_scale, analog_scale, 0, button_colour, controls_opacity * image_alpha);
+
+if (global.dual_controls == 1)
+{
+    draw_sprite_ext(spr_joybase, joystick_type, analog2_posx, analog2_posy, analog_scale, analog_scale, 0, button_colour, controls_opacity * image_alpha);
+    draw_sprite_ext(spr_joystick, joystick_type, analog2_center_x, analog2_center_y, analog_scale, analog_scale, 0, button_colour, controls_opacity * image_alpha);
+}
+
 draw_sprite_ext(spr_settings_mobile, keyboard_check(92), settx, setty, 2, 2, 0, button_colour, 0.5);

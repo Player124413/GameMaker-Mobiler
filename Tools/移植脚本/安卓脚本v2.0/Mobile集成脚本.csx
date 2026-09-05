@@ -372,11 +372,11 @@ else
 
 // -------------- 下面的 MobileKey 添加部分保持不变 --------------
 string displayName = Data.GeneralInfo?.DisplayName?.Content.ToLower();
-string keyOption = "Button3";
+
 
 string dataPath0 = Path.Combine(Path.GetDirectoryName(scriptsBasePath), "MobileScript/" + "TouchControls_data");
 string dataPath1 = Path.Combine(Path.GetDirectoryName(scriptsBasePath), "MobileScript/" + "TouchControls_data_button");
-string dataPath2 = Path.Combine(Path.GetDirectoryName(scriptsBasePath), "MobileScript/" + "MobileKeyCode" + keyOption);
+string dataPath2 = Path.Combine(Path.GetDirectoryName(scriptsBasePath), "MobileScript/" + "MobileKeyCodeUnified");
 string dataPath3 = Path.Combine(Path.GetDirectoryName(scriptsBasePath), "MobileScript/" + "mobilecont");
 
 Dictionary<string, UndertaleEmbeddedTexture> textures = new Dictionary<string, UndertaleEmbeddedTexture>();

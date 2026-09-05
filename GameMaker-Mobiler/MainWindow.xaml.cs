@@ -421,7 +421,7 @@ namespace GameMaker_Mobiler
 
         private void AnimateSubOptions(bool expand)
         {
-            var targetHeight = expand ? 150d : 0d;
+            var targetHeight = expand ? 175d : 0d;
             var targetOpacity = expand ? 1d : 0d;
 
             if (expand)
@@ -578,6 +578,7 @@ namespace GameMaker_Mobiler
                 MobileHealCheckBox.IsChecked == true,
                 MobileCnCheckBox.IsChecked == true,
                 AndroidKeyboardCheckBox.IsChecked == true,
+                DualControlsCheckBox.IsChecked == true,
                 EmbedMusicCheckBox.IsChecked == true
             };
 
@@ -734,6 +735,7 @@ namespace GameMaker_Mobiler
             MobileHealCheckBox.IsChecked = false;
             MobileCnCheckBox.IsChecked = true;
             AndroidKeyboardCheckBox.IsChecked = false;
+            DualControlsCheckBox.IsChecked = false;
             EmbedMusicCheckBox.IsChecked = false;
 
             BuildProgressBar.Value = 0;

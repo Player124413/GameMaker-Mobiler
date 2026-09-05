@@ -1,11 +1,13 @@
 //0为否，1为是
 global.ui_state = 1;
-global.mobile_f2 = 1;
+global.mobile_f2 = 0;
 //Joystick重开键是否开启
 global.mobile_heal = 0;
 //Joystick回血键是否开启
 global.mobile_cn = 1;
 //Joystick设置选项是否中文
+global.dual_controls = 0;
+//是否开启双摇杆模式
 global.mobile_prioritize_display = 0;
 //键盘显示优先级
 //1深度-16000
@@ -16,7 +18,7 @@ global.add_mobilekey = 1;
 //添加mobilekey
 global.Android_System_Keyboard = 0;
 //添加系统键盘
-
+global.is_ute=0;
 if (asset_get_index("font_mubai") >= 0)
     global.joystick_font = asset_get_index("font_mubai");
 else

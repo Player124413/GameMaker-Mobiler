@@ -215,13 +215,16 @@
                                           Margin="0,0,0,8"/>
                                     <CheckBox x:Name="AndroidKeyboardCheckBox"
                                           Content="系统键盘 (Android_System_Keyboard)"
+                                          Margin="0,0,0,8"/>
+                                    <CheckBox x:Name="DualControlsCheckBox"
+                                          Content="双摇杆模式 (dual_controls)"
                                           Margin="0,0,0,4"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
 
                         <CheckBox x:Name="EmbedMusicCheckBox"
-                              Content="把音乐内置进 data.win（导入 data.win 所在目录的 .ogg/.wav）"
+                              Content="把音乐内置进 data.win"
                               Margin="0,4,0,4"
                               ToolTip="执行“导入所有音乐.csx”，自动读取 data.win 同目录下的音频文件并内置到 data.win。"/>
 

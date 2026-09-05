@@ -64,9 +64,9 @@ public sealed class UtmtService
             throw new FileNotFoundException("data.win not found", dataWinPath);
         }
 
-        if (options is null || options.Length < 6)
+        if (options is null || options.Length < 7)
         {
-            throw new ArgumentException("options must contain 6 values", nameof(options));
+            throw new ArgumentException("options must contain 7 values", nameof(options));
         }
 
         var addMobileKey = options[0];
@@ -74,7 +74,8 @@ public sealed class UtmtService
         var mobileHeal = options[2];
         var mobileCn = options[3];
         var androidSystemKeyboard = options[4];
-        var embedMusicIntoDataWin = options[5];
+        var dualControls = options[5];
+        var embedMusicIntoDataWin = options[6];
 
         var gameDir = Path.GetDirectoryName(dataWinPath) ?? string.Empty;
         var isUte = DetectUteTemplate(gameDir);
@@ -160,7 +161,7 @@ public sealed class UtmtService
             }
 
             var templateContent = await File.ReadAllTextAsync(templatePath, cancellationToken).ConfigureAwait(false);
-            var patchedContent = PatchMobileGlobals(templateContent, addMobileKey, mobileF2, mobileHeal, mobileCn, androidSystemKeyboard);
+            var patchedContent = PatchMobileGlobals(templateContent, addMobileKey, mobileF2, mobileHeal, mobileCn, androidSystemKeyboard, dualControls);
 
             _log?.Invoke($"写入全局变量配置到 {Path.GetFileName(workingOutputPath)}...", false);
             cancellationToken.ThrowIfCancellationRequested();
@@ -219,7 +220,8 @@ public sealed class UtmtService
         bool mobileF2,
         bool mobileHeal,
         bool mobileCn,
-        bool androidSystemKeyboard)
+        bool androidSystemKeyboard,
+        bool dualControls)
     {
         var output = template;
 
@@ -228,6 +230,7 @@ public sealed class UtmtService
         output = ReplaceGlobalAssignment(output, "mobile_heal", mobileHeal);
         output = ReplaceGlobalAssignment(output, "mobile_cn", mobileCn);
         output = ReplaceGlobalAssignment(output, "Android_System_Keyboard", androidSystemKeyboard);
+        output = ReplaceGlobalAssignment(output, "dual_controls", dualControls);
 
         return output;
     }

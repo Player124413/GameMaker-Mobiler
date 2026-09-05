@@ -13,7 +13,13 @@ xx = 488;
 xy = 294;
 cx = 573;
 cy = 253;
-hx = 556;
+zx2 = 454;
+zy2 = 0;
+xx2 = 538;
+xy2 = 0;
+cx2 = 623;
+cy2 = 0;
+hx = 350;
 hy = 5;
 f2x = 5;
 f2y = 5;
@@ -25,6 +31,14 @@ rightx = 140;
 righty = 275;
 downx = 59;
 downy = 356;
+up2x = 521;
+up2y = 194;
+left2x = 440;
+left2y = 275;
+right2x = 602;
+right2y = 275;
+down2x = 521;
+down2y = 356;
 button_scale = 3;
 analog_scale = 3.5;
 arrowkeys_area_size = 19.675;
@@ -67,9 +81,29 @@ if (file_exists("touchconfig_button.ini"))
     righty = ini_read_real("CONFIG", "righty", righty);
     downx = ini_read_real("CONFIG", "downx", downx);
     downy = ini_read_real("CONFIG", "downy", downy);
+    up2x = ini_read_real("CONFIG", "up2x", up2x);
+    up2y = ini_read_real("CONFIG", "up2y", up2y);
+    left2x = ini_read_real("CONFIG", "left2x", left2x);
+    left2y = ini_read_real("CONFIG", "left2y", left2y);
+    right2x = ini_read_real("CONFIG", "right2x", right2x);
+    right2y = ini_read_real("CONFIG", "right2y", right2y);
+    down2x = ini_read_real("CONFIG", "down2x", down2x);
+    down2y = ini_read_real("CONFIG", "down2y", down2y);
     button_scale = ini_read_real("CONFIG", "button_scale", button_scale);
     analog_scale = ini_read_real("CONFIG", "analog_scale", analog_scale);
     joystick_type = ini_read_real("CONFIG", "joystick_type", joystick_type);
     controls_opacity = ini_read_real("CONFIG", "controls_opacity", controls_opacity);
+    ini_close();
+}
+
+if (file_exists("touchconfig2.ini"))
+{
+    ini_open("touchconfig2.ini");
+    zx2 = ini_read_real("CONFIG", "zx", zx2);
+    zy2 = ini_read_real("CONFIG", "zy", zy2);
+    xx2 = ini_read_real("CONFIG", "xx", xx2);
+    xy2 = ini_read_real("CONFIG", "xy", xy2);
+    cx2 = ini_read_real("CONFIG", "cx", cx2);
+    cy2 = ini_read_real("CONFIG", "cy", cy2);
     ini_close();
 }
