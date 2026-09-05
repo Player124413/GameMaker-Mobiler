@@ -2,18 +2,114 @@ name: Build
 
 on:
   push:
+    branches: ['**']
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      make_release:
+        description: 'Create a GitHub Release after the build'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  CONFIGURATION: Release
 
 jobs:
   build:
     name: Build (Windows)
     runs-on: windows-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Hello
-        run: echo ok
+        with:
+          # UndertaleModLib 的 PreBuild 目标会调用 git describe，需要完整历史
+          fetch-depth: 0
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      # 仓库自带的 NuGet.config 指向中国镜像源，GitHub 托管 runner 访问不到，
+      # 因此在 CI 里临时改用官方源（不影响仓库中的文件）。
+      - name: Use nuget.org in CI
+        shell: pwsh
+        run: |
+          Set-Content -Path NuGet.config -Encoding UTF8 -Value @(
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<configuration>',
+            '  <packageSources>',
+            '    <clear />',
+            '    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />',
+            '  </packageSources>',
+            '</configuration>'
+          )
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore GameMaker-Mobiler.sln
+
+      - name: Build
+        run: dotnet build GameMaker-Mobiler.sln -c ${{ env.CONFIGURATION }} --no-restore
+
+      - name: Publish (win-x64)
+        run: >
+          dotnet publish GameMaker-Mobiler/GameMaker-Mobiler.csproj
+          -c ${{ env.CONFIGURATION }}
+          -r win-x64
+          --self-contained false
+          -o publish/app
+
+      # 运行时依赖：Tools/ 与 "GMS2 APK/" 必须与 exe 放在一起（RuntimePaths 在 exe 目录查找）
+      - name: Assemble portable package
+        shell: pwsh
+        run: |
+          $out = 'publish/GameMaker-Mobiler'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item -Recurse -Force 'publish/app/*' $out
+          Copy-Item -Recurse -Force 'Tools' (Join-Path $out 'Tools')
+          Copy-Item -Recurse -Force 'GMS2 APK' (Join-Path $out 'GMS2 APK')
+          Copy-Item -Force 'README.md' $out
+          if (-not (Test-Path (Join-Path $out 'GameMaker-Mobiler.exe'))) { throw 'GameMaker-Mobiler.exe not found' }
+          $apkCount = (Get-ChildItem (Join-Path $out 'GMS2 APK') -Filter *.apk).Count
+          Write-Host "APK templates: $apkCount"
+          if ($apkCount -lt 1) { throw 'APK templates were not packaged' }
+
+      - name: Create zip
+        shell: pwsh
+        run: |
+          $sha = $env:GITHUB_SHA.Substring(0, 7)
+          $name = "GameMaker-Mobiler-win-x64-$sha.zip"
+          Compress-Archive -Path 'publish/GameMaker-Mobiler/*' -DestinationPath $name -CompressionLevel Optimal
+          "ARTIFACT_NAME=$name" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host ("Package: {0} ({1} MB)" -f $name, [math]::Round((Get-Item $name).Length / 1MB, 1))
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GameMaker-Mobiler-win-x64
+          path: ${{ env.ARTIFACT_NAME }}
+          retention-days: 30
+          compression-level: 0
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.make_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ARTIFACT_NAME }}
+          generate_release_notes: true
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build-{0}', github.run_number) }}
+          name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('Build #{0}', github.run_number) }}
